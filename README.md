@@ -13,6 +13,42 @@ The first three phases will be preserved as standalone implementations to docume
 ## Project Objectives
 
 ## Architecture
+```mermaid
+flowchart TD
+    A[Notion Workout Records]
+
+    subgraph P1["Phase 1 - Manual End-to-End Pipeline"]
+        B[Manual CSV Export]
+        C[SQL Server Medallion Layers]
+        D[Local Streamlit Dashboard]
+    end
+
+    subgraph P2["Phase 2 - Notion API Ingestion"]
+        E[Notion API]
+        F[Python Ingestion Script]
+    end
+
+    subgraph P3["Phase 3 - Automated Pipeline"]
+        G[Scheduled Pipeline Execution]
+        H[Automated Data Refresh]
+    end
+
+    subgraph P4["Phase 4 - Public Deployment"]
+        I[Public Streamlit Dashboard]
+        J[Production-Style Personal Data Product]
+    end
+
+    A --> B
+    B --> C
+    C --> D
+    A --> E
+    E --> F
+    F --> C
+    F --> G
+    G --> H
+    H --> I
+    I --> J
+```
 
 ## Technology
 
