@@ -229,6 +229,21 @@ WHERE today IS NULL
    OR NULLIF(TRIM(exercise), '') IS NULL
    OR NULLIF(TRIM(workout_log), '') IS NULL;
 
+-- Investigate incomplete Silver records.
+-- Determine whether missing values originated in Bronze.
+
+SELECT
+    b.bronze_id,
+    b.workout_log AS bronze_workout,
+    b.exercise AS bronze_exercise,
+    s.workout_log AS silver_workout,
+    s.exercise AS silver_exercise
+FROM bronze.exercise_entries AS b
+JOIN silver.exercise_entries AS s
+    ON b.bronze_id = s.bronze_id
+WHERE b.bronze_id IN (321, 334, 335)
+ORDER BY b.bronze_id;
+
 
 -- 10B. INVALID SOURCE DATES
 -- Identify nonempty Bronze dates that cannot be converted.
