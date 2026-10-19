@@ -1,0 +1,17 @@
+CREATE DATABASE GymDB;
+GO
+
+USE GymDB;
+GO
+
+CREATE SCHEMA bronze;
+GO
+
+CREATE SCHEMA silver;
+GO
+
+CREATE SCHEMA gold;
+GO
+
+USE GymDB;
+GO
