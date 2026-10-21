@@ -1,2 +1,4 @@
 # Ignore private datasets
 *.csv
+/A. Manual End-to-End Pipeline/check.sql
+/A. Manual End-to-End Pipeline/check_csv.py
