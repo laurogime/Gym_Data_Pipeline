@@ -1,6 +1,7 @@
+
 /*
 Purpose:
-    Transform Bronze workout records into Silver.
+    Clean and standardize Bronze workout records for the Silver layer.
 
 Source:
     bronze.exercise_entries
@@ -10,6 +11,9 @@ Target:
 
 Grain:
     One row per Bronze exercise entry.
+
+Behavior:
+    Insert new records only. Existing Silver records are not updated.
 */
 
 SET XACT_ABORT ON;
@@ -24,6 +28,7 @@ BEGIN TRY
             TRY_CONVERT(DATETIME2(3), today)
                 AS workout_date,
 
+            -- Remove appended Notion URLs while preserving workout names.
             CASE
                 WHEN CHARINDEX(' (https://', workout_log) > 0
                     THEN TRIM(LEFT(
@@ -42,6 +47,8 @@ BEGIN TRY
                 ELSE TRIM(exercise)
             END AS exercise,
 
+            -- Blank numeric fields become NULL; invalid values also
+            -- become NULL when TRY_CONVERT cannot parse them.
             TRY_CONVERT(
                 DECIMAL(6,2),
                 NULLIF(TRIM(set_1_weight), '')
@@ -73,6 +80,32 @@ BEGIN TRY
             ) AS set_3_reps
 
         FROM bronze.exercise_entries
+    ),
+    standardized AS (
+        SELECT
+            bronze_id,
+            workout_date,
+
+            -- Normalize known naming inconsistencies after URL removal.
+            CASE
+                WHEN workout_log = 'Back Day 1'
+                    THEN 'Pull Day 1'
+                WHEN workout_log = 'Pull Day Day 10'
+                    THEN 'Pull Day 10'
+                WHEN workout_log = 'Push Day | 14'
+                    THEN 'Push Day 14'
+                ELSE workout_log
+            END AS workout_log,
+
+            exercise,
+            set_1_weight,
+            set_1_reps,
+            set_2_weight,
+            set_2_reps,
+            set_3_weight,
+            set_3_reps
+
+        FROM cleaned
     )
 
     INSERT INTO silver.exercise_entries (
@@ -89,22 +122,25 @@ BEGIN TRY
     )
 
     SELECT
-        c.bronze_id,
-        c.workout_date,
-        c.workout_log,
-        c.exercise,
-        c.set_1_weight,
-        c.set_1_reps,
-        c.set_2_weight,
-        c.set_2_reps,
-        c.set_3_weight,
-        c.set_3_reps
+        s.bronze_id,
+        s.workout_date,
+        s.workout_log,
+        s.exercise,
+        s.set_1_weight,
+        s.set_1_reps,
+        s.set_2_weight,
+        s.set_2_reps,
+        s.set_3_weight,
+        s.set_3_reps
 
-    FROM cleaned AS c
+    FROM standardized AS s
+
+    -- Prevent repeat inserts for Bronze records already loaded.
+    -- This does not synchronize changes to existing Silver records.
     WHERE NOT EXISTS (
         SELECT 1
-        FROM silver.exercise_entries AS s
-        WHERE s.bronze_id = c.bronze_id
+        FROM silver.exercise_entries AS ss
+        WHERE ss.bronze_id = s.bronze_id
     );
 
     COMMIT TRANSACTION;
