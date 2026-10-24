@@ -87,3 +87,14 @@ FROM silver.exercise_entries
 WHERE workout_log IS NULL
    OR today IS NULL
 ORDER BY silver_id;
+
+
+-- Investigate namign inconsistencies
+SELECT DISTINCT workout_log
+FROM silver.exercise_entries
+WHERE workout_log IS NOT NULL
+ORDER BY workout_log ASC;
+
+-- confirming that there is no Pull Day 1
+SELECT workout_log
+FROM silver.exercise_entries
