@@ -79,3 +79,35 @@ Selecting the highest corresponding repetition count when maximum weights are ti
 - Equal-weight records require repetition-based tie-breaking.
 - Missing values must be handled without assigning repetitions from a different weight.
 - Gold calculations must follow these rules before their results are used in Power BI.
+
+---
+
+## Amendment: Incomplete Weight–Repetition Pairs
+
+**Date:** 2026-10-26
+**Status:** Accepted
+
+### Decision
+
+Only sets containing both a recorded weight and its
+corresponding repetitions qualify for Gold progression.
+
+- Sets 1 and 2 remain the only eligible sets.
+- Incomplete sets are excluded from maximum weight selection.
+- If one set is incomplete, another complete set may qualify.
+- Across all qualifying sets for the same workout session
+  and exercise, select the highest weight.
+- When qualifying weights are tied, select the highest reps.
+- Exclude the session–exercise result when no complete
+  weight–repetition pair exists.
+
+### Rationale
+
+Incomplete measurements cannot reliably represent
+exercise performance. Retaining complete sets prevents
+unnecessary data loss without inventing missing values.
+
+### Consequences
+
+Bronze and Silver preserve all original measurements.
+Gold includes only qualifying weight–repetition pairs.

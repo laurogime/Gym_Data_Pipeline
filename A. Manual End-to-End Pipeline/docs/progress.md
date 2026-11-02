@@ -97,51 +97,144 @@ Detailed test results are recorded in [validation.md](validation.md).
 
 ## M-002: Exercise Progression Investigation
 
-**Date:** 2026-10-24  
-**Status:** In Progress  
-**SQL:** [Exercise Progression Investigation](../gold/investigations/b_investigate_exercise_progression.sql)
+**Started:** 2026-10-24  
+**Updated:** 2026-11-02  
+**Status:** Completed — Validation Passed  
+**SQL:** [Exercise Progression Investigation](../gold/investigations/b_investigate_exercise_progression.sql)  
+**Validation:** [Exercise Progression Validation](../gold/investigations/c_validate_exercise_progression.sql)
 
 ### Objective
 
-Develop the maximum weight progression metric for the Power BI dashboard.
+Develop and validate the maximum weight progression calculation for the Power BI dashboard.
 
-The Gold dataset will contain one row per `workout_log` and `exercise`, showing the maximum recorded weight and its corresponding repetitions.
+The intended Gold dataset contains one row per `workout_log` and `exercise`, with the maximum qualifying weight and its corresponding repetitions.
 
 ### Business Rules
 
 - Consider Sets 1 and 2 only, as established in ADR-001.
-- Select the maximum recorded weight for each exercise within a workout session.
-- Return the repetitions associated with the selected weight.
-- When weights are equal, select the highest available repetition count.
-- Do not apply a minimum repetition requirement.
+- A qualifying set must contain both weight and repetitions.
+- Exclude incomplete weight–repetition pairs without modifying Bronze or Silver.
+- Select the maximum qualifying weight across all records for the same workout session and exercise.
+- When maximum weights are equal, select the highest corresponding repetitions.
+- Exclude records with missing workout or exercise identifiers.
+- Exclude workout–exercise combinations without any qualifying sets.
+- No minimum repetition threshold is applied.
 
 ### Development Progress
 
-1. Explored `GREATEST()` to compare weights between Sets 1 and 2.
-2. Used `CASE` expressions to select repetitions based on the recorded weights.
-3. Investigated equal-weight cases and introduced a repetition tie-breaking condition.
-4. Identified unexpected `NULL` results caused by comparisons involving missing weights.
-5. Tested additional NULL-handling conditions and discovered that selecting repetitions independently of the winning weight can produce incorrect results.
+**October 24, 2026 — Initial Investigation**
+
+- Explored `GREATEST()` and `CASE` expressions to compare weights and select corresponding repetitions.
+- Investigated equal-weight ties and NULL handling.
+- Identified cases where weight and repetitions could become incorrectly paired.
+- Established the requirement to select the maximum weight across repeated exercise entries within a session.
+
+**October 26, 2026 — Query Redesign**
+
+- Attempted to handle incomplete weight–repetition pairs using multiple CTEs and `CASE` expressions.
+- Identified that the conditional logic was becoming difficult to maintain.
+- Introduced `CROSS APPLY` with `VALUES` to transform Sets 1 and 2 into separate rows while preserving their weight–repetition relationships.
+- Established the revised approach for selecting qualifying measurements.
+
+**November 2, 2026 — Implementation and Validation**
+
+- Implemented the redesigned calculation using `CROSS APPLY`, CTEs, and `ROW_NUMBER()`.
+- Applied eligibility filtering to exclude incomplete measurements.
+- Implemented weight-based ranking with repetition tie-breaking.
+- Replaced `SELECT *` with explicit column selections for maintainability.
+- Completed three validation checks:
+  - VAL-010: Grain uniqueness — Passed.
+  - VAL-011: Maximum weight and repetition accuracy — Passed.
+  - VAL-012: Controlled edge-case testing — 11 passed, 0 failed.
 
 ### What I Learned
 
 - The difference between comparing values across columns and aggregating values across rows.
-- How `CASE` evaluates conditions in order.
-- How NULL values affect SQL comparisons.
-- Why maximum weight and repetitions must be treated as a related pair.
-- Why a query that executes successfully may still produce incorrect analytical results.
+- How NULL values affect SQL comparisons and eligibility rules.
+- Using `CROSS APPLY` with `VALUES` to transform set columns into rows.
+- Using `ROW_NUMBER()` to select the highest qualifying measurement per group.
+- Why weights and repetitions must remain correctly paired.
+- Using independent reference calculations and controlled test data to validate SQL logic.
+- Reviewing AI-generated SQL for correctness, maintainability, and edge cases.
+
+### Result
+
+The exercise progression calculation passed the documented investigation-level validation checks.
+
+The validated logic was carried forward into M-003 for implementation as a persisted Gold dataset.
+
+---
+
+## M-003: Gold Exercise Progression Implementation
+
+**Started:** 2026-11-02  
+**Updated:** 2026-11-02  
+**Status:** Implemented — Further Validation Pending  
+**SQL:** [Gold Exercise Progression Build](../gold/b_build_exercise_progression.sql)  
+**Validation:** [Gold Exercise Progression Validation](../gold/c_validate_gold_exercise_progression.sql)
+
+### Objective
+
+Implement `gold.exercise_progression` using the validated M-002 calculation.
+
+The dataset contains one row per `workout_log` and `exercise`, with the maximum qualifying weight and its corresponding repetitions.
+
+### Development Progress
+
+**November 2, 2026 — Gold Implementation**
+
+- Created the Gold exercise progression dataset using the approved M-002 logic.
+- Implemented a transactional full-refresh strategy.
+- Used a temporary table to prepare replacement data before refreshing Gold.
+- Added a safeguard to reject an empty replacement dataset.
+- Implemented first-time table creation and subsequent refresh behavior.
+- Added transaction handling with `COMMIT`, `ROLLBACK`, and error propagation.
+- Successfully populated `gold.exercise_progression` with 521 records.
+
+### Validation Progress
+
+**VAL-013: Unchanged-Source Idempotency — Passed**
+
+- Captured the existing Gold dataset before reexecution.
+- Reran the transformation without changing Silver data.
+- Confirmed 521 records before and after the refresh.
+- Confirmed no duplicate workout–exercise combinations.
+- Confirmed no before-and-after discrepancies.
+
+**VAL-014: Transaction Rollback — Passed**
+
+- Simulated a partial refresh by inserting 200 records within a transaction.
+- Deliberately raised error 51014 before committing.
+- Verified that rollback restored the original 521 Gold records.
+- Confirmed no discrepancies against the original dataset.
+
+**VAL-015: Source-Change Refresh — Incomplete**
+
+- Selected a Silver record for a controlled source-change test.
+- Verified that a temporary Silver weight modification could be rolled back.
+- Attempted to test whether a source change would propagate into Gold.
+- The test stopped during its baseline check with error 51022: `Gold baseline does not match`.
+- Further investigation is required before completing this validation.
+
+### What I Learned
+
+- The difference between atomicity and idempotency.
+- How database transactions protect against partially committed changes.
+- Why rerunnable transformations are important for data pipelines.
+- Using temporary tables to prepare replacement datasets and capture validation snapshots.
+- Comparing datasets using `EXCEPT`.
+- Testing transaction rollback through controlled failures.
+- The importance of validating test assumptions before modifying source data.
 
 ### Pending
 
-- Correct the row-level weight–repetition pairing logic.
-- Handle missing weights and repetitions without substituting values from another set.
-- Select the maximum weight across all records for each `workout_log` and `exercise`.
-- Verify that the output contains one row per workout session and exercise.
-- Test NULL handling, equal-weight ties, and repeated exercise entries.
-- Document verified results in `docs/validation.md`.
+- Investigate and resolve the VAL-015 baseline mismatch.
+- Complete source-change refresh validation.
+- Perform any remaining checks required before finalizing the Gold dataset.
+- Record final verification results in `docs/validation.md`.
 
 ### Current Outcome
 
-The investigation has established the required selection rules and identified important edge cases. The current SQL implementation is not yet fully correct or validated.
+The Gold exercise progression table has been implemented and populated with 521 records.
 
-Row-level logic and session-level aggregation will continue in the next development session.
+Unchanged-source rerun and controlled rollback tests passed. Source-change refresh behavior remains unverified, so M-003 is not yet considered fully validated.

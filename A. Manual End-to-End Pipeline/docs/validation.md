@@ -119,58 +119,275 @@ This result establishes rerun behavior for the targeted correction script, not f
 
 The total Silver record count remained unchanged.
 
+### VAL-010: Exercise Progression Grain Uniqueness
+
+**Component:** Gold — M-002  
+**Status:** Passed  
+**SQL:** [Exercise Progression Validation](../gold/investigations/c_validate_exercise_progression.sql) — VAL-010  
+
+**Expected:** No duplicate combinations of `workout_log` and `exercise`.
+
+**Actual:** Zero duplicate groups returned.
+
+**Conclusion:** The generated exercise progression query produces at most one row per workout session and exercise for the tested dataset.
+
+**Limitation:** The result does not verify maximum-weight accuracy, repetition pairing, or completeness. These require separate validation.
+
+### VAL-011: Maximum Weight and Repetition Accuracy
+
+**Component:** Gold — M-002  
+**SQL:** [Exercise Progression Validation](../gold/investigations/c_validate_exercise_progression.sql) — VAL-011  
+**Status:** Passed
+
+**Expected:** No discrepancies between the M-002 exercise progression query results and the independently calculated reference results.
+
+**Actual:** Zero mismatched records returned.
+
+**Validation Method:**
+
+- Constructed a reference dataset using `UNION ALL` to combine qualifying Sets 1 and 2.
+- Used `MAX(weight)` to independently determine the maximum qualifying weight per workout session and exercise.
+- Selected the highest repetitions among sets matching the maximum weight.
+- Compared actual and expected results using `FULL OUTER JOIN` to detect missing, unexpected, and mismatched records.
+
+**Conclusion:**
+
+The exercise progression query produced results consistent with the independent reference calculation for the tested Silver dataset.
+
+**Limitation:**
+
+Both calculations use the same source data and eligibility assumptions. Passing this comparison does not establish correctness for every possible input. Controlled edge-case testing remains necessary.
+
+#### VAL-012: Controlled Exercise Progression Edge Cases
+
+**Component:** Gold — M-002  
+**SQL:** [Exercise Progression Validation](../gold/investigations/c_validate_exercise_progression.sql) — VAL-012  
+**Status:** Passed
+
+**Expected:** All 11 controlled test scenarios return `PASS`.
+
+**Actual:** 11 passed, 0 failed.
+
+**Validation Method:**
+
+Constructed test records using `VALUES` with predetermined expected results. Applied the exercise progression logic and compared its output against the expected maximum weights and corresponding repetitions.
+
+The scenarios covered normal comparisons, equal-weight ties, incomplete measurements, repeated exercise entries, Set 3 exclusion, and missing session or exercise identifiers.
+
+**Conclusion:**
+
+The tested exercise progression logic satisfied all 11 controlled scenarios.
+
+**Limitation:**
+
+The tests used a copy of the transformation logic rather than a finalized Gold table. Passing these scenarios does not guarantee correctness for every possible input.
+
 ---
 
 ## Gold Layer Validation
 
-**Status:** Pending Implementation
+**Component:** Gold Layer  
+**Status:** Implementation and Validation in Progress
+
+The exercise progression calculation has passed investigation-level validation and has been implemented as a Gold table. Workout duration remains pending, and exercise progression source-change validation is incomplete.
 
 ### M-001: Workout Session Duration
 
-**SQL:** [Workout Session Investigation](../gold/investigations/a_investigate_workout_sessions.sql)
+**SQL:** [Workout Session Investigation](../gold/investigations/a_investigate_workout_sessions.sql)  
+**Status:** Investigation Completed — Implementation Pending
 
-The investigation identified four workout logs with records spanning multiple calendar dates.
+The investigation identified four workout logs containing records across multiple calendar dates.
 
-The established business rules use `workout_log` as the session identifier and apply a 10-hour threshold to estimated duration calculations.
+The approved business rules use `workout_log` as the session identifier and apply a 10-hour threshold to estimated duration calculations.
 
-**Pending validation:**
+**Pending Validation:**
 
 - Correct duration calculation for each workout session.
 - Classification of `VALID`, `INVALID`, and `INSUFFICIENT_DATA` sessions.
-- NULL duration values for invalid or insufficient estimates.
+- NULL durations for invalid or insufficient estimates.
 - One output row per workout session.
 
-### M-002: Exercise Progression
+---
 
-**SQL:** [Exercise Progression Investigation](../gold/investigations/b_investigate_exercise_progression.sql)
+### M-002: Exercise Progression Investigation
 
-Row-level weight and repetition selection is under development. Tests have revealed cases where missing values or incorrectly ordered conditions can produce mismatched weight–repetition pairs.
+**SQL:** [Exercise Progression Investigation](../gold/investigations/b_investigate_exercise_progression.sql)  
+**Validation:** [Exercise Progression Validation](../gold/investigations/c_validate_exercise_progression.sql)  
+**Status:** Completed — Validation Passed
 
-**Pending validation:**
+#### VAL-010: Exercise Progression Grain Uniqueness
 
-- Correct pairing of maximum weight and corresponding repetitions.
-- Correct handling of NULL weights and repetitions.
-- Highest-repetition selection when maximum weights are tied.
-- Maximum weight selection across repeated exercise entries.
-- One output row per workout session and exercise.
+**Status:** Passed
 
-No Gold transformation has passed final validation yet.
+**Expected:** No duplicate combinations of `workout_log` and `exercise`.
+
+**Actual:** Zero duplicate groups returned.
+
+**Conclusion:**
+
+The tested exercise progression query produced at most one row per workout session and exercise, consistent with the approved Gold grain.
+
+**Limitation:**
+
+The query uses `ROW_NUMBER()` partitioned by `workout_log` and `exercise`, followed by a filter selecting rank 1. This structure inherently restricts each partition to at most one row.
+
+This validation does not independently establish maximum-weight accuracy, repetition pairing, or completeness.
+
+#### VAL-011: Maximum Weight and Repetition Accuracy
+
+**Status:** Passed
+
+**Expected:** No discrepancies between the M-002 exercise progression query results and independently calculated reference results.
+
+**Actual:** Zero mismatched records returned.
+
+**Validation Method:**
+
+- Constructed a reference dataset using `UNION ALL` to combine qualifying Sets 1 and 2.
+- Used `MAX(weight)` to determine the maximum qualifying weight per workout session and exercise.
+- Selected the highest repetitions among measurements matching the maximum weight.
+- Used `FULL OUTER JOIN` to compare actual and expected results, including missing and unexpected records.
+
+**Conclusion:**
+
+The exercise progression query produced results consistent with the independent reference calculation for the tested Silver dataset.
+
+**Limitation:**
+
+Both calculations use the same source data and eligibility rules. Agreement does not establish correctness for every possible input.
+
+#### VAL-012: Controlled Exercise Progression Edge Cases
+
+**Status:** Passed
+
+**Expected:** All 11 controlled test scenarios return `PASS`.
+
+**Actual:** 11 passed, 0 failed.
+
+**Validation Method:**
+
+Constructed test records using `VALUES` with predetermined expected results. Applied the exercise progression calculation and compared its output against the expected values.
+
+The scenarios covered normal comparisons, equal-weight ties, incomplete measurements, repeated exercise entries, Set 3 exclusion, and missing workout or exercise identifiers.
+
+**Conclusion:**
+
+The tested exercise progression logic satisfied all 11 controlled scenarios.
+
+**Limitation:**
+
+The scenarios exercised a copy of the transformation logic rather than the finalized persisted Gold table. Passing these scenarios does not guarantee correctness for every possible input.
+
+---
+
+### M-003: Gold Exercise Progression Implementation
+
+**SQL:** [Gold Exercise Progression Build](../gold/b_build_exercise_progression.sql)  
+**Validation:** [Gold Exercise Progression Validation](../gold/c_validate_gold_exercise_progression.sql)  
+**Status:** Implemented — Further Validation Pending
+
+The transformation created `gold.exercise_progression` using a transactional full-refresh strategy.
+
+The resulting Gold dataset contained 521 rows.
+
+#### VAL-013: Gold Exercise Progression Idempotency
+
+**Status:** Passed
+
+**Expected:** Reexecuting the Gold transformation with unchanged Silver data produces identical results without duplicate records or execution errors.
+
+**Actual:**
+
+- Before refresh: 521 records.
+- After refresh: 521 records.
+- Duplicate workout–exercise combinations: 0.
+- Before-and-after discrepancies: 0.
+- Refresh execution: Successful.
+
+**Conclusion:**
+
+The Gold exercise progression transformation successfully refreshed the existing dataset without changing its contents or introducing duplicate workout–exercise combinations.
+
+**Limitation:**
+
+This test verifies repeatability with unchanged Silver data. Failure recovery and behavior after source-data changes require separate validation.
+
+#### VAL-014: Transaction Rollback and Failure Recovery
+
+**Status:** Passed
+
+**Expected:** An intentional failure during a partial refresh triggers a transaction rollback, preserving the original Gold dataset.
+
+**Actual:**
+
+- Original Gold records: 521.
+- Records inserted during the simulated partial refresh: 200.
+- Intentional error number: 51014.
+- Records after rollback: 521.
+- Before-and-after discrepancies: 0.
+
+**Conclusion:**
+
+The controlled failure triggered a successful transaction rollback. The original 521 Gold records were preserved without detected discrepancies.
+
+**Limitation:**
+
+This test simulated a failure within a separate test transaction. It does not establish recovery behavior for every possible failure in the actual Gold transformation script.
+
+#### VAL-015: Source-Change Refresh
+
+**Status:** Incomplete — Baseline Mismatch
+
+**Objective:**
+
+Verify that changes to qualifying Silver measurements are correctly reflected in Gold after refreshing the dataset.
+
+**Test Preparation:**
+
+- Selected `bronze_id = 1`, `Pull Day 1`, `Pull-up Bar`.
+- Original Silver Set 1 weight: 49.50 kg.
+- Proposed temporary weight: 50.50 kg.
+- Confirmed that a temporary Silver update could be rolled back successfully.
+
+**Actual:**
+
+The subsequent source-change refresh test stopped during its Gold baseline check with SQL error 51022: `Gold baseline does not match`.
+
+The test did not reach the source-change refresh operation.
+
+**Conclusion:**
+
+The source-change refresh behavior remains unverified. The actual Gold baseline must be inspected before the test can continue.
+
+**Pending:**
+
+- Investigate the baseline mismatch.
+- Correct the validation assumptions.
+- Reexecute the controlled source-change refresh test.
+- Verify restoration of Silver and Gold after testing.
 
 ---
 
 ## Conclusion
 
-The Silver workout-log standardization passed all nine documented checks.
+Silver workout-log standardization passed all nine documented checks.
 
 All 21 targeted records were corrected, the correction script affected zero rows on its second execution, and the Silver record count remained at 532.
 
-Gold investigations are ongoing. Their results will be documented as additional validation cases after the transformations are implemented and tested.
+M-002 exercise progression validation passed VAL-010 through VAL-012, including all 11 controlled edge-case scenarios.
+
+M-003 successfully created and populated `gold.exercise_progression` with 521 rows. The unchanged-source idempotency and controlled rollback tests passed.
+
+VAL-015 remains incomplete because its baseline assertion failed. Gold exercise progression is therefore not yet considered fully validated.
 
 ### Validation Limitations
 
-- Silver validation focused on targeted naming corrections and total record count.
+- Silver validation focused on targeted naming corrections and record counts.
 - Unrelated column values were not independently compared before and after correction.
 - Dependency checks did not cover every possible external or dynamically generated reference.
-- Silver naming validation alone does not establish session identity. The session-identification rule was established separately during M-001 based on the recording practices.
+- Silver naming validation alone does not establish session identity.
 - Duration estimates may remain inaccurate even when they fall within the approved 10-hour threshold.
-- Exercise progression calculations are not yet ready for production or dashboard use.
+- M-002 controlled tests used a copy of the transformation logic.
+- M-003 rollback validation used a controlled simulation rather than a failure inside the actual build script.
+- Gold source-change refresh behavior remains unverified.
+- The Gold datasets are not yet ready for final dashboard use.
