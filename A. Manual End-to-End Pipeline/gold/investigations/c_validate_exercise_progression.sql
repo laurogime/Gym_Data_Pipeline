@@ -410,3 +410,25 @@ FROM expected_result AS e
 LEFT JOIN actual_result AS a
     ON e.test_id = a.test_id
 ORDER BY e.test_id;
+
+-- VAL-015: Diagnostic Query
+-- Purpose: Investigate the original Gold baseline mismatch
+-- Finding: Equal weights of 49.50 kg had different repetitions.
+-- Gold correctly selected 10 reps based on the tie-breaking rule.
+-- Status: Resolved
+
+SELECT
+    s.bronze_id,
+    s.workout_log,
+    s.exercise,
+    s.set_1_weight,
+    s.set_1_reps,
+    s.set_2_weight,
+    s.set_2_reps,
+    g.max_weight AS gold_max_weight,
+    g.max_weight_reps AS gold_max_reps
+FROM silver.exercise_entries AS s
+LEFT JOIN gold.exercise_progression AS g
+    ON s.workout_log = g.workout_log
+    AND s.exercise = g.exercise
+WHERE s.bronze_id = 1;
