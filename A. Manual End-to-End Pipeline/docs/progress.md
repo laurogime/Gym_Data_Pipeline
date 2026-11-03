@@ -41,12 +41,15 @@ The calculation is a proxy based on exercise-entry creation times, not a measure
 - Distinguishing workout session identity from timestamp reliability.
 - Defining business rules before implementing analytical calculations.
 
-### Pending
+### Implementation Follow-through
 
-- Implement the workout duration calculation in Gold.
-- Apply the duration status rules.
-- Validate duration calculations and edge cases.
-- Record verified results in `docs/validation.md`.
+- Completed the workout-duration investigation.
+- Amended ADR-002 to introduce the 15-minute minimum threshold.
+- Implemented `gold.workout_duration` using the approved business rules.
+- Completed persisted-data validation VAL-016 through VAL-020.
+- Confirmed 74 Gold records: 62 valid, 9 suspect, and 3 invalid.
+
+**Current Status:** M-001 investigation completed. Gold workout-duration implementation and initial validation were completed under M-003.
 
 ### November 3, 2026 — Timestamp Quality Investigation
 
@@ -181,21 +184,46 @@ The validated logic was carried forward into M-003 for implementation as a persi
 
 ---
 
-## M-003: Gold Exercise Progression Implementation
+## M-003: Gold Layer Implementation and Validation
 
-**Started:** 2026-11-02  
-**Updated:** 2026-11-03  
-**Status:** Implemented — Controlled Validation Passed  
-**SQL:** [Gold Exercise Progression Build](../gold/b_build_exercise_progression.sql)  
-**Validation:** [Gold Exercise Progression Validation](../gold/c_validate_gold_exercise_progression.sql)
+**Started:** 2026-11-02
+
+**Updated:** 2026-11-03
+
+**Status:** Both Gold Datasets Implemented — Initial Validation Passed
 
 ### Objective
+
+Implement and validate the two Gold datasets required for the Phase 1 Power BI dashboard:
+
+1. `gold.exercise_progression` — Maximum qualifying weight and its corresponding repetitions per workout session and exercise.
+2. `gold.workout_duration` — Estimated workout duration and quality classification per workout session.
+
+Both datasets use SQL Server, follow the approved business rules, and support transactional full-refresh operations.
+
+---
+
+### 1. Gold Exercise Progression Implementation
+
+**Started:** 2026-11-02
+
+**Updated:** 2026-11-03
+
+**Status:** Implemented — Controlled Validation Passed
+
+**SQL:** [Gold Exercise Progression Build](../gold/b_build_exercise_progression.sql)
+
+**Validation:** [Gold Exercise Progression Validation](../gold/c_validate_gold_exercise_progression.sql)
+
+#### Objective
 
 Implement `gold.exercise_progression` using the validated M-002 calculation.
 
 The dataset contains one row per `workout_log` and `exercise`, with the maximum qualifying weight and its corresponding repetitions.
 
-### Development Progress
+The calculation follows ADR-001 and the approved eligibility and tie-breaking rules.
+
+#### Development Progress
 
 **November 2, 2026 — Gold Implementation**
 
@@ -207,35 +235,40 @@ The dataset contains one row per `workout_log` and `exercise`, with the maximum 
 - Added transaction handling with `COMMIT`, `ROLLBACK`, and error propagation.
 - Successfully populated `gold.exercise_progression` with 521 records.
 
-### Validation Progress
+#### Validation Results
 
 **VAL-013: Unchanged-Source Idempotency — Passed**
 
 - Captured the existing Gold dataset before reexecution.
 - Reran the transformation without changing Silver data.
 - Confirmed 521 records before and after the refresh.
-- Confirmed no duplicate workout–exercise combinations.
-- Confirmed no before-and-after discrepancies.
+- Confirmed zero duplicate workout–exercise combinations.
+- Confirmed zero before-and-after discrepancies.
 
-**VAL-014: Transaction Rollback — Passed**
+**Result:** The transformation reproduced the same dataset when executed again with unchanged source data.
 
-- Simulated a partial refresh by inserting 200 records within a transaction.
+**VAL-014: Transaction Rollback — Passed (Controlled Test)**
+
+- Simulated a partial refresh within a transaction.
+- Inserted 200 records during the simulated operation.
 - Deliberately raised error 51014 before committing.
-- Verified that rollback restored the original 521 Gold records.
-- Confirmed no discrepancies against the original dataset.
+- Verified that the rollback restored the original 521 Gold records.
+- Confirmed zero discrepancies against the original dataset.
+
+**Result:** The simulated failure was rolled back successfully, preserving the original Gold data.
 
 **VAL-015: Source-Change Refresh — Passed (Controlled Test)**
 
 **November 2, 2026 — Initial Investigation**
 
-- Selected `bronze_id = 1`, `Pull Day 1`, `Pull-up Bar` for a controlled source-change test.
+- Selected `bronze_id = 1`, `Pull Day 1`, and `Pull-up Bar` for a controlled source-change test.
 - Confirmed that a temporary Silver weight modification could be rolled back.
-- The initial source-change test stopped with error 51022 because the expected Gold baseline did not match.
+- The initial test stopped with error 51022 because its expected Gold baseline was incorrect.
 
 **November 3, 2026 — Investigation and Resolution**
 
 - Investigated the actual Silver measurements and corresponding Gold result.
-- Identified that both sets recorded 49.50 kg, with 8 repetitions in Set 1 and 10 repetitions in Set 2.
+- Identified two qualifying sets recording 49.50 kg, with 8 repetitions in Set 1 and 10 repetitions in Set 2.
 - Confirmed that Gold correctly selected 49.50 kg × 10 repetitions based on the approved tie-breaking rule.
 - Corrected the validation's baseline assumption.
 - Temporarily increased Silver Set 1 weight to 50.50 kg.
@@ -243,11 +276,11 @@ The dataset contains one row per `workout_log` and `exercise`, with the maximum 
 - Rolled back the transaction and confirmed that Silver and Gold returned to their original values.
 - Confirmed 521 Gold records before and after testing, with zero remaining discrepancies.
 
-**Result:** The controlled source-change refresh test passed.
+**Result:** The controlled source-change test passed after correcting the expected baseline.
 
-**Limitation:** The test executed a copy of the transformation and refresh logic inside a controlled transaction. Source-change behavior through a standalone execution of `b_build_exercise_progression.sql` has not been independently validated.
+**Limitation:** VAL-015 executed a copy of the transformation and refresh logic within a controlled transaction. Source-change behavior through standalone execution of `b_build_exercise_progression.sql` was not independently validated.
 
-### What I Learned
+#### What I Learned
 
 - The difference between atomicity and idempotency.
 - How transactions protect against partially committed changes.
@@ -259,18 +292,213 @@ The dataset contains one row per `workout_log` and `exercise`, with the maximum 
 - Why incorrect validation assumptions can cause a test to fail even when the transformation is correct.
 - The importance of preserving the relationship between maximum weight and corresponding repetitions.
 
-### Pending
+#### Current Outcome
 
-- Complete any remaining persisted-table and standalone execution checks required for final Gold approval.
-- Document any additional verified findings in `docs/validation.md`.
-- Proceed with implementation and validation of `gold.workout_duration`.
-
-### Current Outcome
-
-The Gold exercise progression table has been implemented and populated with 521 records.
+The `gold.exercise_progression` table has been implemented and populated with 521 records.
 
 VAL-013 and VAL-014 passed, confirming unchanged-source rerun behavior and rollback under a controlled failure.
 
 VAL-015 also passed after correcting an incorrect baseline assumption. The controlled test confirmed that changes in Silver were reflected in the recalculated Gold result and that the original data was restored successfully.
 
-The exercise progression implementation is ready for the next development stage, with the remaining validation limitations documented.
+The implementation is available for dashboard development, with its remaining validation limitations documented.
+
+---
+
+### 2. Gold Workout Duration Implementation
+
+**Started:** 2026-11-03
+
+**Updated:** 2026-11-03
+
+**Status:** Implemented — Initial Validation Passed
+
+**SQL:** [Gold Workout Duration Build](../gold/d_build_workout_duration.sql)
+
+**Validation:** [Gold Workout Duration Validation](../gold/e_validate_gold_workout_duration.sql)
+
+#### Objective
+
+Implement `gold.workout_duration` using the amended duration-quality rules established in ADR-002.
+
+The dataset contains one row per non-NULL `workout_log`, with an estimated duration in minutes and its corresponding quality classification.
+
+#### Business Rules
+
+- Identify sessions using non-NULL `workout_log` values.
+- Calculate the recording span using `MIN(today)` and `MAX(today)`.
+- Classify sessions with fewer than two timestamped entries as `INSUFFICIENT_DATA`.
+- Classify spans below 15 minutes as `SUSPECT_TIMESTAMP`.
+- Classify spans exceeding 10 hours as `INVALID`.
+- Classify spans from 15 minutes through 10 hours, inclusive, as `VALID`.
+- Return a numeric estimated duration only for `VALID` sessions.
+- Preserve original Bronze and Silver timestamps.
+
+The duration calculation measures elapsed time between exercise-entry creation timestamps, not confirmed workout completion time.
+
+#### Development Progress
+
+**November 3, 2026 — Gold Implementation**
+
+- Implemented a transactional full-refresh transformation.
+- Used `MIN(today)` and `MAX(today)` to calculate the elapsed time between exercise-entry creation timestamps.
+- Applied all four approved duration-quality classifications.
+- Ensured only `VALID` sessions receive numeric estimated durations.
+- Added preflight checks and replacement-dataset validation.
+- Implemented initial table creation and subsequent full-refresh behavior.
+- Successfully populated `gold.workout_duration` with 74 records.
+
+#### Validation Results
+
+**VAL-016: Gold Workout Duration Grain Validation — Passed**
+
+- Silver distinct workout sessions: 74.
+- Gold records: 74.
+- Gold distinct workout sessions: 74.
+- Gold NULL session identifiers: 0.
+
+**Result:** The persisted dataset satisfied the expected one-row-per-session grain.
+
+**VAL-017: Workout Session Membership Validation — Passed**
+
+- Missing Gold sessions: 0.
+- Unexpected Gold sessions: 0.
+
+**Result:** All expected non-NULL Silver workout-session identifiers were represented in Gold.
+
+**VAL-018: Duration Calculation and Classification Accuracy — Passed**
+
+- Missing or mismatched reference records: 0.
+- Unexpected or mismatched Gold records: 0.
+- All seven persisted output columns matched the Silver-derived reference.
+
+**Result:** The stored session information, estimated durations, quality classifications, and NULL values matched the reference calculation for the tested dataset.
+
+**VAL-019: Unchanged-Source Idempotency — Passed**
+
+- Baseline Gold records: 74.
+- Full-refresh transformation reran successfully.
+- SHA-256 dataset fingerprint remained identical.
+
+**Result:** Reexecuting the transformation with unchanged Silver data reproduced the same serialized Gold dataset.
+
+**VAL-020: Transaction Rollback and Failure Recovery — Passed (Controlled Test)**
+
+- Original Gold records: 74.
+- Records inserted during the simulated partial refresh: 20.
+- Intentional error number: 51020.
+- Records after rollback: 74.
+- Missing records: 0.
+- Unexpected records: 0.
+
+**Result:** The simulated failure triggered a successful rollback, preserving the original 74 Gold records.
+
+**Limitation:** VAL-020 used a separate controlled transaction rather than injecting a failure into the standalone build script. It does not establish recovery behavior for every possible execution failure.
+
+#### Final Classification Results
+
+| Duration Status | Sessions |
+|---|---:|
+| `VALID` | 62 |
+| `SUSPECT_TIMESTAMP` | 9 |
+| `INVALID` | 3 |
+| `INSUFFICIENT_DATA` | 0 |
+| **Total** | **74** |
+
+#### What I Learned
+
+- How source timestamp reliability affects downstream analytical metrics.
+- Why quality classifications should be defined before implementing a transformation.
+- Using conditional logic to distinguish reliable estimates from questionable observations.
+- Applying minimum and maximum duration thresholds using `DATEADD()`.
+- Validating session membership independently of row counts.
+- Comparing persisted Gold results against source-derived reference calculations.
+- Using SHA-256 fingerprints to check unchanged-source rerun consistency.
+- Testing transaction rollback through controlled failures.
+- Understanding the limitations of timestamp-based estimates.
+
+#### Current Outcome
+
+The `gold.workout_duration` dataset has been implemented and populated with 74 records.
+
+VAL-016 through VAL-020 passed, confirming session grain, membership, reference consistency, unchanged-source rerun behavior, and rollback under a controlled failure.
+
+The calculated durations remain estimates based on exercise-entry creation timestamps rather than confirmed workout start and end times.
+
+The 15-minute minimum remains a business-defined quality heuristic, and the suspected upstream timestamp issue has not been independently confirmed.
+
+Standalone source-change refresh behavior has not been independently tested.
+
+---
+
+### 3. M-003 Overall Outcome
+
+**Status:** Both Gold Datasets Implemented — Initial Validation Passed
+
+| Gold Dataset | Records | Validation |
+|---|---:|---|
+| `gold.exercise_progression` | 521 | VAL-013–VAL-015 passed |
+| `gold.workout_duration` | 74 | VAL-016–VAL-020 passed |
+
+Both Gold datasets have been implemented using transactional full-refresh transformations.
+
+The completed validation work provides evidence of calculation accuracy, dataset consistency, and controlled rollback behavior, subject to the documented testing limitations.
+
+The Gold datasets are available for integration into the Phase 1 Power BI dashboard.
+
+### Pending and Deferred Work
+
+- Additional standalone source-change and failure-recovery testing may be performed in a later validation pass.
+- Preserve existing Bronze and Silver records and timestamps.
+- Continue monitoring duration-quality classifications as new workout data becomes available.
+- Defer expanded set-level progression analytics and additional dashboard features to Phase 2.
+
+---
+
+## Phase 1 Closure — November 3, 2026
+
+**Status:** Technical Implementation Completed — Initial Validation Passed
+
+### Final Deliverables
+
+- Completed the manual Notion CSV ingestion workflow.
+- Implemented the Bronze and Silver data layers.
+- Implemented `gold.exercise_progression` with 521 records.
+- Implemented `gold.workout_duration` with 74 records.
+- Completed the documented Gold validation checks (VAL-010 through VAL-020).
+- Documented business rules, engineering decisions, validation evidence, and known limitations.
+
+### Scope Adjustment
+
+Dashboard development was originally included in Phase 1 under M-004.
+
+The project scope was revised to conclude Phase 1 after implementing and initially validating the Bronze, Silver, and Gold layers.
+
+Dashboard development and automated Notion ingestion were transferred to Phase 2.
+
+The previous Power BI dashboard decisions remain documented as historical design decisions.
+
+### Remaining Limitations
+
+- Data ingestion remains manual.
+- Existing Silver records are not automatically synchronized when Bronze values change.
+- Workout-duration estimates depend on exercise-entry creation timestamps.
+- Some Gold validation tests used controlled simulations rather than direct standalone-build failure testing.
+- Independent clean-environment end-to-end reproducibility remains unverified.
+
+These limitations are documented and do not prevent closure of the revised Phase 1 development scope.
+
+### Final Outcome
+
+Phase 1 has delivered the manual data engineering pipeline foundation required for subsequent automation and analytics development.
+
+Both Gold datasets are implemented and have passed their documented initial validation tests.
+
+### Transition to Phase 2
+
+**Proposed Phase:** Automated Workout Analytics System
+
+Phase 2 will reuse and extend the Phase 1 pipeline foundation.
+
+Planned capabilities include automated Notion API ingestion, incremental data synchronization, automated pipeline execution, and a Streamlit dashboard or PowerBI.
+
+The detailed Phase 2 architecture will be defined separately.
