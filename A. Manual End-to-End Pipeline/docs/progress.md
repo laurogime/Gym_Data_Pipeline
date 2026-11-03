@@ -2,9 +2,9 @@
 
 ## M-001: Workout Session Investigation
 
-**Started:** 2026-10-22  
-**Updated:** 2026-10-24  
-**Status:** In Progress  
+**Started:** 2026-10-22
+**Updated:** 2026-11-03
+**Status:** Investigation and Classification Validation Completed — Gold Implementation Pending
 **SQL:** [Workout Session Investigation](../gold/investigations/a_investigate_workout_sessions.sql)
 
 ### Objective
@@ -23,11 +23,15 @@ Investigate workout session identity and determine whether exercise-entry timest
 ### Business Rules
 
 - Each non-NULL `workout_log` identifies one workout session.
-- Original timestamps remain unchanged.
-- Estimated duration is calculated from the earliest and latest recorded timestamps within a session.
-- Durations exceeding 10 hours are classified as `INVALID` and reported as `NULL`.
-- Sessions with fewer than two timestamped entries are classified as `INSUFFICIENT_DATA`.
-- Remaining durations are classified as `VALID`, although they are still estimates rather than confirmed workout durations.
+- Preserve the original creation timestamps in Bronze and Silver.
+- Estimate duration using the earliest and latest entry-creation timestamps within each session.
+- Classify sessions with fewer than two timestamps as `INSUFFICIENT_DATA`.
+- Classify sessions with recorded spans below 15 minutes as `SUSPECT_TIMESTAMP`.
+- Classify sessions with recorded spans exceeding 10 hours as `INVALID`.
+- Classify spans from 15 minutes through 10 hours, inclusive, as `VALID`.
+- Return estimated duration in minutes only for `VALID` sessions. All other statuses return `NULL`.
+
+The calculation is a proxy based on exercise-entry creation times, not a measurement of actual workout completion time. The minimum and maximum duration thresholds are quality-control heuristics.
 
 ### What I Learned
 
@@ -43,6 +47,18 @@ Investigate workout session identity and determine whether exercise-entry timest
 - Apply the duration status rules.
 - Validate duration calculations and edge cases.
 - Record verified results in `docs/validation.md`.
+
+### November 3, 2026 — Timestamp Quality Investigation
+
+- Investigated unusually short workout-duration estimates using individual exercise-entry timestamps.
+- Identified repeated timestamps and nine sessions with spans of four minutes or less.
+- Compared suspicious timestamps between Bronze and Silver; all inspected values matched.
+- Amended ADR-002 to introduce `SUSPECT_TIMESTAMP` for recording spans below 15 minutes.
+- Implemented the revised classification logic while retaining the 10-hour maximum.
+- Classified 74 sessions: 62 valid, 9 suspect, and 3 invalid.
+- Completed six controlled boundary tests, all passing.
+
+**Current Status:** Duration quality investigation and initial classification validation completed. Gold table implementation and persisted-data validation remain pending.
 
 ---
 
