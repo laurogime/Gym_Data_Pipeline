@@ -119,68 +119,6 @@ This result establishes rerun behavior for the targeted correction script, not f
 
 The total Silver record count remained unchanged.
 
-### VAL-010: Exercise Progression Grain Uniqueness
-
-**Component:** Gold — M-002  
-**Status:** Passed  
-**SQL:** [Exercise Progression Validation](../gold/investigations/c_validate_exercise_progression.sql) — VAL-010  
-
-**Expected:** No duplicate combinations of `workout_log` and `exercise`.
-
-**Actual:** Zero duplicate groups returned.
-
-**Conclusion:** The generated exercise progression query produces at most one row per workout session and exercise for the tested dataset.
-
-**Limitation:** The result does not verify maximum-weight accuracy, repetition pairing, or completeness. These require separate validation.
-
-### VAL-011: Maximum Weight and Repetition Accuracy
-
-**Component:** Gold — M-002  
-**SQL:** [Exercise Progression Validation](../gold/investigations/c_validate_exercise_progression.sql) — VAL-011  
-**Status:** Passed
-
-**Expected:** No discrepancies between the M-002 exercise progression query results and the independently calculated reference results.
-
-**Actual:** Zero mismatched records returned.
-
-**Validation Method:**
-
-- Constructed a reference dataset using `UNION ALL` to combine qualifying Sets 1 and 2.
-- Used `MAX(weight)` to independently determine the maximum qualifying weight per workout session and exercise.
-- Selected the highest repetitions among sets matching the maximum weight.
-- Compared actual and expected results using `FULL OUTER JOIN` to detect missing, unexpected, and mismatched records.
-
-**Conclusion:**
-
-The exercise progression query produced results consistent with the independent reference calculation for the tested Silver dataset.
-
-**Limitation:**
-
-Both calculations use the same source data and eligibility assumptions. Passing this comparison does not establish correctness for every possible input. Controlled edge-case testing remains necessary.
-
-#### VAL-012: Controlled Exercise Progression Edge Cases
-
-**Component:** Gold — M-002  
-**SQL:** [Exercise Progression Validation](../gold/investigations/c_validate_exercise_progression.sql) — VAL-012  
-**Status:** Passed
-
-**Expected:** All 11 controlled test scenarios return `PASS`.
-
-**Actual:** 11 passed, 0 failed.
-
-**Validation Method:**
-
-Constructed test records using `VALUES` with predetermined expected results. Applied the exercise progression logic and compared its output against the expected maximum weights and corresponding repetitions.
-
-The scenarios covered normal comparisons, equal-weight ties, incomplete measurements, repeated exercise entries, Set 3 exclusion, and missing session or exercise identifiers.
-
-**Conclusion:**
-
-The tested exercise progression logic satisfied all 11 controlled scenarios.
-
-**Limitation:**
-
-The tests used a copy of the transformation logic rather than a finalized Gold table. Passing these scenarios does not guarantee correctness for every possible input.
 
 ---
 
@@ -189,23 +127,60 @@ The tests used a copy of the transformation logic rather than a finalized Gold t
 **Component:** Gold Layer  
 **Status:** Implementation and Validation in Progress
 
-The exercise progression calculation has passed investigation-level validation and has been implemented as a Gold table. Workout duration remains pending, and exercise progression source-change validation is incomplete.
+The exercise progression calculation has passed investigation-level validation and has been implemented as `gold.exercise_progression`.
+
+The implemented dataset passed unchanged-source idempotency (VAL-013) and controlled transaction rollback (VAL-014) testing. Controlled source-change refresh validation (VAL-015) also passed, although standalone source-change execution remains untested.
+
+Workout duration investigation and preliminary classification validation are complete. The `gold.workout_duration` dataset has not yet been implemented.
 
 ### M-001: Workout Session Duration
 
-**SQL:** [Workout Session Investigation](../gold/investigations/a_investigate_workout_sessions.sql)  
-**Status:** Investigation Completed — Implementation Pending
+**SQL:**
+- [Workout Session Investigation](../gold/investigations/a_investigate_workout_sessions.sql)
+- [Workout Duration Investigation](../gold/investigations/d_investigate_workout_duration.sql)
+
+**Status:** Investigation and Classification Validation Completed — Implementation Pending
 
 The investigation identified four workout logs containing records across multiple calendar dates.
 
-The approved business rules use `workout_log` as the session identifier and apply a 10-hour threshold to estimated duration calculations.
+Further investigation identified nine workout sessions with creation-timestamp spans of four minutes or less. Comparison of the inspected Bronze and Silver records confirmed that their timestamp values matched.
+
+ADR-002 was amended on November 3, 2026, to introduce a 15-minute minimum threshold and the `SUSPECT_TIMESTAMP` classification while retaining the original 10-hour maximum.
+
+**Approved Duration Quality Rules:**
+
+- `INSUFFICIENT_DATA`: Fewer than two timestamped entries.
+- `SUSPECT_TIMESTAMP`: Recorded duration below 15 minutes.
+- `INVALID`: Recorded duration exceeding 10 hours.
+- `VALID`: Recorded duration from 15 minutes through 10 hours, inclusive.
+
+Only `VALID` sessions receive a numeric estimated duration. All other classifications return `NULL`.
+
+**Initial Classification Results:**
+
+| Duration Status | Sessions |
+|---|---:|
+| VALID | 62 |
+| SUSPECT_TIMESTAMP | 9 |
+| INVALID | 3 |
+| INSUFFICIENT_DATA | 0 |
+| **Total** | **74** |
+
+Six controlled boundary tests passed, including the exact 15-minute and 10-hour thresholds.
 
 **Pending Validation:**
 
-- Correct duration calculation for each workout session.
-- Classification of `VALID`, `INVALID`, and `INSUFFICIENT_DATA` sessions.
-- NULL durations for invalid or insufficient estimates.
-- One output row per workout session.
+- Verify calculated durations in the persisted Gold dataset.
+- Verify all four classifications in the persisted Gold dataset.
+- Confirm NULL estimated durations for excluded or unreliable sessions.
+- Verify one output row per non-NULL `workout_log`.
+- Validate rerun behavior and transaction rollback for the Gold transformation.
+
+**Limitation:**
+
+The duration metric measures the elapsed time between the first and last exercise-entry creation timestamps. It does not capture the completion time of the final exercise and may underestimate actual workout duration.
+
+The 15-minute threshold is a business-defined quality heuristic. The suspected upstream timestamp issue has not been independently confirmed.
 
 ---
 
@@ -358,3 +333,45 @@ The controlled source-change test confirmed that the exercise progression calcul
 **Limitation:**
 
 The test executed a copy of the transformation and refresh logic within a controlled transaction, rather than invoking the standalone M-003 build script. End-to-end source-change behavior of the standalone script was not independently tested.
+
+---
+
+### Workout Duration Quality Investigation — November 3, 2026
+
+**Component:** Gold — M-001  
+**SQL:** [Workout Duration Investigation](../gold/investigations/d_investigate_workout_duration.sql)  
+**Status:** Investigation Checks Passed
+
+**Findings:**
+
+- Identified 17 workout sessions containing repeated creation timestamps.
+- Identified 9 sessions with timestamp spans of four minutes or less.
+- Confirmed that the inspected suspicious timestamps matched between Bronze and Silver.
+- Updated ADR-002 to introduce a 15-minute minimum threshold and `SUSPECT_TIMESTAMP` classification.
+
+**Classification Results:**
+
+| Status | Sessions |
+|---|---:|
+| VALID | 62 |
+| SUSPECT_TIMESTAMP | 9 |
+| INVALID | 3 |
+| INSUFFICIENT_DATA | 0 |
+| **Total** | **74** |
+
+**Boundary Testing:**
+
+Six controlled scenarios were tested, including the exact 15-minute and 10-hour boundaries.
+
+**Actual:** 6 passed, 0 failed.
+
+**Conclusion:**
+
+The revised duration-classification logic produced the expected results for the tested Silver dataset and all six controlled boundary cases.
+
+**Limitations:**
+
+- The suspected upstream timestamp issue has not been independently confirmed.
+- The 15-minute threshold is a business-defined reliability heuristic.
+- The calculation measures the span between exercise-entry creation timestamps rather than confirmed workout duration.
+- The final `gold.workout_duration` dataset has not yet been implemented or validated.
