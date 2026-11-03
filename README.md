@@ -1,134 +1,164 @@
 # Gym Data Engineering Pipeline
 
-*A two-phase Data Engineering project transforming workout records into validated datasets and performance analytics.*
+*A two-phase Data Engineering project transforming workout records into validated datasets and an automated workout analytics system.*
 
 ## Overview
 
-The Gym Data Pipeline is a personal Data Engineering project that transforms workout records from Notion into structured, validated datasets for exercise progression analysis and dashboard visualization.
+The Gym Data Pipeline is a personal Data Engineering project designed to transform workout records from Notion into structured, validated datasets for exercise progression analysis.
 
-The project began as a way to better understand gym performance while applying Data Engineering concepts to a real dataset. It provides practical experience in data ingestion, database design, SQL transformations, data validation, analytical modeling, and business intelligence.
+The project combines practical Data Engineering skills with a real-world application: tracking gym performance through reliable data processing and analytics.
 
 Development is organized into two phases:
 
-- **Phase 1 — Manual End-to-End Pipeline:** Build and validate a complete data pipeline using manually exported workout records, SQL Server, and Power BI.
-- **Phase 2 — Final Pipeline:** Develop the final implementation by consolidating the remaining planned engineering work. Its architecture and requirements will be defined after completing Phase 1.
+- **Phase 1 — Manual Data Engineering Pipeline:** Implement and validate a manual data pipeline using Notion CSV exports and Microsoft SQL Server.
+- **Phase 2 — Automated Workout Analytics System:** Extend the Phase 1 foundation with automated Notion ingestion, pipeline orchestration, and an interactive dashboard.
 
-The project is currently in Phase 1, with Bronze and Silver implemented and Gold development underway.
+**Current Status:** Phase 1 technical implementation completed with initial validation passed. Phase 2 planning is next.
 
 ## Problem Statement
 
-Workout records stored in Notion contain useful information about exercise performance, including weights, repetitions, and workout sessions. However, analyzing long-term progression directly from individual records can be inconvenient.
+Workout records stored in Notion contain valuable information about exercise performance, including weights, repetitions, and workout sessions.
 
-The dataset also contains inconsistencies, missing values, and exercise entries recorded after the actual workout.
+However, analyzing long-term progression directly from individual entries is inconvenient. The source data also contains inconsistencies, missing measurements, and unreliable exercise-entry timestamps.
 
-The project addresses these challenges by building a structured pipeline that preserves original records, standardizes data, validates transformations, and produces reliable analytical outputs.
+This project addresses these challenges by building a structured pipeline that preserves source records, standardizes data, validates transformations, and produces analytics-ready datasets.
 
 ## Project Objectives
 
 1. Build a manual data pipeline from Notion CSV exports to SQL Server.
-2. Organize data into Bronze, Silver, and Gold layers.
-3. Develop SQL transformations that preserve data lineage and handle data quality issues.
-4. Validate transformations and analytical calculations using repeatable SQL checks.
-5. Track maximum weight progression and estimated workout session duration.
-6. Visualize validated Gold datasets using Power BI.
-7. Document engineering decisions, limitations, and implementation progress.
+2. Organize records into Bronze, Silver, and Gold layers.
+3. Implement SQL transformations while preserving data lineage.
+4. Validate transformations and analytical calculations.
+5. Calculate maximum weight progression and estimated workout duration.
+6. Document engineering decisions, validation evidence, and known limitations.
+7. Extend the validated foundation into an automated workout tracking application in Phase 2.
 
 ## Architecture
 
-The following diagram represents the planned Phase 1 architecture.
+### Phase 1 — Implemented
 
 ```mermaid
 flowchart TD
-    A["Notion Workout Records"]
-
-    subgraph P1["Phase 1 — Manual End-to-End Pipeline"]
-        B["Manual CSV Export"]
-        C["SQL Server Staging"]
-        D["Bronze — Raw Records"]
-        E["Silver — Cleaned Records"]
-        F["Gold — Analytical Datasets"]
-        G["Power BI Dashboard"]
-
-        B --> C
-        C --> D
-        D --> E
-        E --> F
-        F --> G
-    end
-
-    A --> B
-
-    H["Phase 2 — Final Pipeline: Architecture to Be Defined"]
-
-    G -.-> H
+    A["Notion Workout Records"] --> B["Manual CSV Export"]
+    B --> C["SQL Server Staging"]
+    C --> D["Bronze — Raw Records"]
+    D --> E["Silver — Cleaned Records"]
+    E --> F["Gold — Analytical Datasets"]
+    F --> G["Exercise Progression"]
+    F --> H["Workout Duration"]
 ```
 
-**Implementation status:** Manual ingestion, Bronze, and Silver are implemented. Gold development is in progress, and the Power BI dashboard is planned.
+### Phase 2 — Proposed
 
-Phase 2 is shown as a future development stage rather than a finalized technical architecture.
+```mermaid
+flowchart TD
+    A["Notion Workout Database"] --> B["Automated Notion API Ingestion"]
+    B --> C["SQL Server Data Pipeline"]
+    C --> D["Bronze → Silver → Gold"]
+    D --> E["Streamlit Dashboard"]
+    F["Automated Scheduling and Monitoring"] -.-> B
+    F -.-> C
+```
 
-## Technology
+The Phase 2 architecture is provisional and will be refined before implementation.
+
+Phase 2 is intended to reuse and extend the existing Phase 1 transformations rather than duplicate the entire pipeline.
+
+## Technology Stack
 
 | Technology | Purpose | Status |
 |---|---|---|
 | Notion | Workout data source | In Use |
-| CSV | Manual data export | In Use |
+| CSV | Manual data export | Phase 1 |
 | SQL Server Express | Database engine | In Use |
-| T-SQL | Data transformation and validation | In Use |
+| T-SQL | Transformations and validation | In Use |
 | Visual Studio Code | Development environment | In Use |
-| Git and GitHub | Version control and documentation | In Use |
-| Power BI | Analytics dashboard | Planned |
+| Git and GitHub | Version control | In Use |
+| Python | Automated ingestion and application development | Proposed for Phase 2 |
+| Notion API | Automated source synchronization | Proposed for Phase 2 |
+| Streamlit | Interactive workout dashboard | Proposed for Phase 2 |
 
-Additional technologies for Phase 2 will be determined during its planning stage.
+Power BI was previously selected for the Phase 1 dashboard, but dashboard development has been transferred to Phase 2. The earlier design decisions remain documented.
 
 ## Development Phases
 
-### Phase 1 — Manual End-to-End Pipeline
+### Phase 1 — Manual Data Engineering Pipeline
 
-**Status:** In Progress
+**Status:** Technical Implementation Completed — Initial Validation Passed
 
-Phase 1 focuses on implementing the foundational data pipeline using manually exported workout records.
-
-The architecture follows a Medallion approach:
+Phase 1 establishes the foundational data pipeline using a Medallion-style architecture.
 
 - **Bronze:** Preserve raw workout records.
-- **Silver:** Clean, standardize, and validate the source data.
-- **Gold:** Produce analytics-ready datasets for dashboard reporting.
+- **Silver:** Clean, standardize, and validate source records.
+- **Gold:** Produce analytics-ready datasets using approved business rules.
 
-The Gold layer will support two metrics:
+#### Implementation Results
 
-**1. Maximum Weight Progression**
+| Component | Status | Records |
+|---|---|---:|
+| Manual CSV ingestion | Completed | 532 |
+| Bronze layer | Completed | 532 |
+| Silver layer | Completed | 532 |
+| Gold exercise progression | Implemented and validated | 521 |
+| Gold workout duration | Implemented and validated | 74 |
 
-Track maximum recorded weight and its corresponding repetitions for each exercise across workout sessions. Calculations use Sets 1 and 2 only.
+#### Gold Dataset 1 — Exercise Progression
 
-**2. Estimated Workout Session Duration**
+**Table:** `gold.exercise_progression`
 
-Estimate workout duration from exercise-entry timestamps and identify unreliable estimates using defined validation rules.
+Calculates the maximum qualifying weight and corresponding repetitions per workout session and exercise.
 
-These datasets will support a Power BI dashboard using the approved Balanced Analytics layout.
+The metric considers Sets 1 and 2, requires complete weight–repetition pairs, and resolves equal-weight ties using the highest corresponding repetitions.
 
-**Current progress:**
+**Validation:** VAL-010 through VAL-015 passed within their documented testing scope.
 
-| Component | Status |
-|---|---|
-| CSV ingestion | Completed |
-| Bronze layer | Completed |
-| Silver layer | Completed and validated for tested scope |
-| Gold investigations | In Progress |
-| Gold implementation | Pending |
-| Power BI dashboard | Pending |
+#### Gold Dataset 2 — Workout Duration
 
-Detailed implementation, validation, and engineering decisions are maintained in the [Phase 1 README](A.%20Manual%20End-to-End%20Pipeline/README.md).
+**Table:** `gold.workout_duration`
 
-### Phase 2 — Final Pipeline
+Calculates estimated duration using the earliest and latest exercise-entry creation timestamps within a workout session.
 
-**Status:** Planning Pending
+The dataset implements four quality classifications:
 
-Phase 2 will consolidate the remaining development originally distributed across the intermediate and final phases of the previous roadmap.
+| Status | Sessions |
+|---|---:|
+| `VALID` | 62 |
+| `SUSPECT_TIMESTAMP` | 9 |
+| `INVALID` | 3 |
+| `INSUFFICIENT_DATA` | 0 |
+| **Total** | **74** |
 
-Its technical architecture, automation requirements, and deployment scope will be determined after Phase 1 is completed and evaluated.
+Only `VALID` sessions receive numeric estimated durations.
 
-This avoids committing to infrastructure or implementation details before the manual pipeline is finished.
+**Validation:** VAL-016 through VAL-020 passed within their documented testing scope.
+
+#### Phase 1 Outcome
+
+Both Gold datasets are implemented and available for downstream analytics.
+
+The Phase 1 technical implementation is complete, with known limitations recorded in the project documentation.
+
+Dashboard development is no longer a Phase 1 completion requirement.
+
+Detailed documentation is available in the [Phase 1 README](A.%20Manual%20End-to-End%20Pipeline/README.md).
+
+### Phase 2 — Automated Workout Analytics System
+
+**Status:** Planning
+
+Phase 2 will extend the existing manual pipeline into an automated system intended for daily workout tracking.
+
+Proposed capabilities include:
+
+- Automated ingestion from the Notion API.
+- Synchronization of newly created and modified workout entries.
+- Preservation of historical workout measurements.
+- Automated Bronze, Silver, and Gold processing.
+- Streamlit dashboard for exercise progression and workout analytics.
+- Near-real-time data refresh.
+- Monitoring, error handling, and recovery.
+
+The final technology choices, deployment strategy, and implementation sequence will be determined during Phase 2 planning.
 
 ## Repository Structure
 
@@ -151,9 +181,9 @@ Gym_Data_Pipeline/
         └── validation.md
 ```
 
-The Phase 1 directory contains the SQL scripts, investigation queries, technical documentation, and planned dashboard components.
+The existing `dashboard/` folder is part of the earlier Phase 1 repository structure; dashboard implementation is deferred.
 
-See the [Phase 1 README](A.%20Manual%20End-to-End%20Pipeline/README.md) for the detailed repository structure.
+A dedicated Phase 2 directory will be introduced once its initial architecture is approved.
 
 ## Getting Started
 
@@ -164,61 +194,80 @@ git clone https://github.com/laurogime/Gym_Data_Pipeline.git
 cd Gym_Data_Pipeline
 ```
 
-Navigate to the Phase 1 directory and review its README for the SQL Server setup, execution sequence, and validation details.
+Navigate to `A. Manual End-to-End Pipeline/` and consult its README for the manual SQL Server workflow, implementation details, and validation references.
 
-The current pipeline requires Microsoft SQL Server Express and a compatible workout CSV export.
+The pipeline currently requires Microsoft SQL Server Express and a compatible Notion workout CSV export.
 
-**Reproducibility note:** The original workout dataset is private and is not included as a public sample dataset. A complete external setup and reproduction guide has not yet been validated.
+**Reproducibility note:** The original workout dataset is private. Independent clean-environment setup and end-to-end reproduction have not yet been fully validated.
 
-## Data Quality & Validation
+## Data Quality and Validation
 
-Data validation is a core part of the project.
+Data quality is a central engineering requirement.
 
-The Bronze and Silver development process includes checks for record reconciliation, identifier uniqueness, data conversion accuracy, missing values, and repeat execution behavior.
+Phase 1 validation includes:
 
-### Current Validated Results
+- Bronze–Silver reconciliation of 532 records.
+- Identifier uniqueness and source lineage checks.
+- Numeric and timestamp transformation validation.
+- Correction of 21 inconsistent workout-log records.
+- Investigation of three incomplete source records.
+- Exercise progression accuracy and controlled edge-case testing.
+- Workout duration quality classification and boundary testing.
+- Gold refresh consistency and controlled transaction rollback testing.
 
-- 532 workout records preserved in Bronze and Silver.
-- No missing Bronze identifiers or duplicate `bronze_id` groups detected in Silver.
-- Initial Silver transformation and sequential rerun validation completed.
-- 21 inconsistent workout-log names corrected and verified.
-- Three incomplete source records identified and preserved for traceability.
+The documented validation checks passed within their tested scope.
 
-These results apply to the tested data and transformation rules. They do not establish that every original workout measurement is accurate.
+These results do not prove universal correctness, guarantee measurement accuracy, or establish recovery from every possible production failure.
 
-Gold calculations remain under development and have not passed final validation.
-
-Detailed investigation and test evidence are maintained in the Phase 1 documentation.
+Detailed evidence is maintained in the [Validation Log](A.%20Manual%20End-to-End%20Pipeline/docs/validation.md).
 
 ## Engineering Decisions
 
-Major engineering decisions are recorded as Architecture Decision Records (ADRs) under `docs/decisions/`.
+Major technical decisions are documented in Architecture Decision Records under the Phase 1 `docs/decisions/` directory.
 
-These cover the exclusion of third-set measurements, workout session identity and duration validation, the two-phase roadmap, Power BI selection, dashboard design, and Gold dataset grain.
+These include:
 
-The development process follows a **Build–Learn–Verify** approach: implement independently, investigate unexpected results, validate behavior, and document the evidence.
+- Set 3 exclusion and exercise progression eligibility.
+- Workout session identity and timestamp reliability.
+- Duration-quality thresholds and classifications.
+- Gold dataset grain and analytical design.
+- Historical dashboard platform and layout decisions.
+- Project phase organization.
+
+Development follows a **Build–Learn–Verify** approach: implement, investigate, independently review, validate, and document the results.
 
 ## Current Limitations
 
-- Data ingestion is manual.
-- SQL Server currently runs in a local development environment.
-- The source dataset is private.
-- Some workout records contain incomplete values.
-- Delayed exercise logging reduces timestamp reliability for duration estimates.
-- Gold analytical transformations are unfinished.
-- The Power BI dashboard has not yet been implemented.
-- Phase 2 architecture remains undefined.
+- Notion ingestion currently requires manual CSV export and import.
+- SQL Server operates in a local development environment.
+- Existing Silver records are not automatically synchronized when Bronze values change.
+- The original workout dataset is private.
+- Some historical records contain incomplete fields.
+- Creation timestamps do not represent confirmed workout completion times.
+- Some validation scenarios use controlled simulations rather than direct failure injection into standalone build scripts.
+- Full independent clean-environment reproducibility has not been established.
+- An interactive dashboard and automated ingestion have not yet been implemented.
 
-## Future Improvements
+## AI Usage
 
-The immediate priority is to complete and validate the two Gold metrics, develop the approved Power BI dashboard, and verify the complete Phase 1 workflow.
+AI has been used to explain Data Engineering concepts, assist with SQL implementation, review code, identify edge cases, and prepare technical documentation.
 
-After Phase 1 is finished, the project will move into planning for the final Phase 2.
+AI-generated code is critically reviewed and tested rather than accepted solely because it executes.
 
-Future engineering enhancements will be evaluated during that planning process rather than added prematurely to the current scope.
+The project emphasizes independent reasoning, debugging, validation, and engineering judgment.
+
+## Next Steps
+
+Phase 1 technical implementation and initial validation are complete.
+
+Remaining project closeout work consists of finalizing and committing the corresponding documentation.
+
+The next development stage is **Phase 2 — Automated Workout Analytics System**, beginning with architectural planning and the reuse of the validated Phase 1 foundation.
 
 ---
 
-**Current Phase:** Phase 1 — Manual End-to-End Pipeline  
-**Current Focus:** Gold Development  
-**Project Status:** In Progress
+**Current Phase:** Phase 1 — Documentation Closeout
+
+**Next Phase:** Phase 2 — Automated Workout Analytics System
+
+**Project Status:** Phase 1 Technical Implementation Completed; Phase 2 Planning Pending
