@@ -1,4 +1,3 @@
-
 /*
 Purpose:
     Investigate inconsistent workout_log names in Silver

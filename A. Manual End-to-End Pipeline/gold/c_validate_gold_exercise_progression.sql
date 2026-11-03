@@ -1,4 +1,3 @@
-
 -- ============================================================
 -- M-003: Gold Exercise Progression Validation
 -- Target: gold.exercise_progression

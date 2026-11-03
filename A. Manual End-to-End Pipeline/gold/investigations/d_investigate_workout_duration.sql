@@ -1,4 +1,3 @@
-
 -- M-001: Workout Duration Investigation
 -- Source: silver.exercise_entries
 -- Target: gold.workout_duration (proposed)

@@ -1,4 +1,3 @@
-
 /*
 Purpose:
     Clean and standardize Bronze workout records for the Silver layer.
