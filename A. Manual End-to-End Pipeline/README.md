@@ -1,79 +1,59 @@
-# Phase 1 — Manual End-to-End Data Pipeline
+# Phase 1 — Manual Data Engineering Pipeline
 
-## Overview
+**Status:** Technical Implementation Completed — Initial Validation Passed  
+**Last Updated:** 2026-11-03  
+**Project:** [Gym Data Pipeline](https://github.com/laurogime/Gym_Data_Pipeline)
 
-The Gym Data Pipeline uses workout records exported from Notion to build a manual data pipeline in Microsoft SQL Server.
+## 1. Overview
 
-The pipeline loads CSV records into a staging table, preserves the original data in Bronze, transforms and standardizes records in Silver, and produces analytics-ready datasets in Gold.
+Phase 1 establishes a manual data engineering pipeline that transforms workout records exported from Notion into validated analytical datasets using Microsoft SQL Server Express.
 
-The final Phase 1 output will be a Power BI dashboard displaying maximum weight progression and estimated workout session duration.
+The pipeline follows a Medallion-style architecture consisting of Bronze, Silver, and Gold layers.
 
-**Current status:** Bronze and Silver are implemented and validated for the tested Phase 1 requirements. Gold investigations are in progress. Gold transformations and the Power BI dashboard have not yet been implemented.
+The implementation and initial validation of both Gold datasets are complete.
 
-Phase 1 focuses on building and understanding a complete manual pipeline before planning the final Phase 2 architecture.
+Dashboard development and automated Notion ingestion have been transferred to Phase 2.
 
-## Objectives
+## 2. Objectives
 
-1. **Data ingestion:** Import workout records from Notion into SQL Server through a manual CSV export.
-2. **Data storage:** Organize records using staging, Bronze, Silver, and Gold layers.
-3. **Data transformation:** Clean, standardize, and aggregate workout records using T-SQL.
-4. **Data validation:** Verify record counts, data lineage, transformation accuracy, and analytical results.
-5. **Data visualization:** Develop a Power BI dashboard using validated Gold datasets.
-6. **Documentation:** Record engineering decisions, implementation progress, validation evidence, and known limitations.
+- Import workout data from Notion using manual CSV exports.
+- Preserve source records in the Bronze layer.
+- Clean and standardize records in the Silver layer.
+- Produce analytical datasets in the Gold layer.
+- Validate transformations, calculations, and data quality.
+- Document engineering decisions, implementation progress, and limitations.
 
-## Architecture
-
-The following diagram represents the intended Phase 1 architecture. Gold and Power BI are planned components and are not yet operational.
+## 3. Pipeline Architecture
 
 ```mermaid
-flowchart LR
-    A["Notion Workout Records"] --> B["Manual CSV Export"]
-    B --> C["SQL Server Staging"]
-    C --> D["Bronze: Raw Records"]
-    D --> E{"Bronze Validation"}
-    E -->|Pass| F["Silver: Cleaning and Standardization"]
-    E -->|Fail| X["Investigate Data Issues"]
-    F --> G{"Silver Validation"}
-    G -->|Pass| H["Gold: Analytical Datasets"]
-    G -->|Fail| X
-    H --> I{"Gold Validation"}
-    I -->|Pass| J["Power BI Dashboard"]
-    I -->|Fail| X
+flowchart TD
+    A[Notion Workout Database] --> B[Manual CSV Export]
+    B --> C[SQL Server Staging]
+    C --> D[Bronze Layer]
+    D --> E[Silver Layer]
+    E --> F[Gold Layer]
+    F --> G[Exercise Progression]
+    F --> H[Workout Duration]
 ```
 
-### Implementation Status
+**Phase 1 scope:** Manual ingestion through validated Gold datasets.
 
-| Component | Status | Evidence / Notes |
-|---|---|---|
-| Manual CSV ingestion | Completed | Workout records loaded into SQL Server staging |
-| Bronze layer | Completed | 532 raw records preserved |
-| Silver transformation | Completed | 532 records transformed |
-| Silver validation | Completed for tested scope | Reconciliation, transformations, and sequential rerun checks passed |
-| Silver naming standardization | Completed | 21 records corrected; targeted validation passed |
-| Gold investigation | In Progress | Session identity and exercise progression investigated |
-| Gold transformation | Not Implemented | Business rules and dataset grains approved |
-| Power BI dashboard | Not Implemented | Balanced Analytics layout approved |
+**Phase 2 scope:** Automated Notion ingestion, pipeline orchestration, and an interactive dashboard.
 
-## Technology Stack
+## 4. Technology Stack
 
-| Technology | Purpose | Status |
-|---|---|---|
-| Notion | Workout data source | In Use |
-| CSV | Manual data export | In Use |
-| Microsoft SQL Server Express | Local database engine | In Use |
-| T-SQL | Data transformation, aggregation, and validation | In Use |
-| Visual Studio Code | Development environment | In Use |
-| Git and GitHub | Version control and documentation | In Use |
-| Power BI | Dashboard and data visualization | Planned |
+| Technology | Purpose |
+|---|---|
+| Notion | Source workout database |
+| CSV | Manual data export |
+| SQL Server Express | Local database engine |
+| T-SQL | Transformations and validation |
+| Visual Studio Code | Development environment |
+| Git and GitHub | Version control and documentation |
 
-The database uses separate Bronze, Silver, and Gold schemas to organize data by processing stage.
-
-## Repository Structure
-
-The following is a partial view of the Phase 1 files relevant to the current development work.
+## 5. Repository Structure
 
 ```text
-
 A. Manual End-to-End Pipeline/
 ├── README.md
 ├── bronze/
@@ -89,297 +69,201 @@ A. Manual End-to-End Pipeline/
 │   ├── c_validate_silver.sql
 │   ├── d_apply_workout_log_corrections.sql
 │   └── investigations/
-│       ├── session_dependencies.sql
-│       └── workout_log_naming.sql
 ├── gold/
+│   ├── b_build_exercise_progression.sql
+│   ├── c_validate_gold_exercise_progression.sql
+│   ├── d_build_workout_duration.sql
+│   ├── e_validate_gold_workout_duration.sql
 │   └── investigations/
-│       ├── a_investigate_workout_sessions.sql
-│       └── b_investigate_exercise_progression.sql
-├── docs/
-│   ├── decisions/
-│   │   ├── ADR-001-third-set-exclusion.md
-│   │   ├── ADR-002-workout-session-duration.md
-│   │   ├── ADR-003-two-phase-roadmap.md
-│   │   ├── ADR-004-bi-tool-selection.md
-│   │   ├── ADR-005-dashboard-layout.md
-│   │   └── ADR-006-gold-data-grain.md
-│   ├── requirements.md
-│   ├── milestones.md
-│   ├── progress.md
-│   └── validation.md
-└── dashboard/
+└── docs/
+    ├── decisions/
+    ├── requirements.md
+    ├── milestones.md
+    ├── progress.md
+    └── validation.md
 ```
 
-This structure does not include every repository file. The Gold investigation scripts are development work, not finalized transformations.
+This is a simplified representation of the repository.
 
-## Implementation
+## 6. Implementation
 
-### Data Ingestion and Staging
-
-Workout records are manually exported from Notion as CSV and imported into the SQL Server staging table:
-
-`dbo.exercise_entries_stage`
-
-The staging table retains source fields before records are loaded into Bronze.
-
-### Bronze Layer
+### 6.1 Data Ingestion and Bronze Layer
 
 **Status:** Completed
 
-- **Source:** `dbo.exercise_entries_stage`
-- **Target:** `bronze.exercise_entries`
-- **Records:** 532
+Workout records are manually exported from Notion and loaded through SQL Server staging.
 
-Bronze preserves the raw workout records before cleaning and business-level transformations.
+**Staging table:** `dbo.exercise_entries_stage`  
+**Bronze table:** `bronze.exercise_entries`  
+**Records:** 532
 
-Each record is assigned a `bronze_id` that is retained in Silver for lineage and traceability.
+Bronze preserves the source workout records for traceability.
 
-The source includes workout-log names, exercise names, creation timestamps, weights, and repetitions for up to three sets.
+Each record receives a `bronze_id`, which is retained in Silver.
 
-### Silver Layer
+### 6.2 Silver Layer
 
-**Status:** Completed and Validated for Tested Phase 1 Requirements
+**Status:** Completed — Validation Passed for Tested Requirements
 
-- **Source:** `bronze.exercise_entries`
-- **Target:** `silver.exercise_entries`
-- **Records:** 532
-- **Grain:** One row per Bronze exercise entry
+**Source:** `bronze.exercise_entries`  
+**Target:** `silver.exercise_entries`  
+**Records:** 532  
+**Grain:** One row per Bronze exercise entry
 
 The Silver transformation:
 
-1. Converts source timestamps to `DATETIME2(3)`.
-2. Converts weights to `DECIMAL(6,2)` and repetitions to `INT`.
-3. Trims selected text fields and removes recognized appended Notion links.
-4. Converts missing numeric measurements to `NULL`.
-5. Retains `bronze_id` for traceability.
-6. Standardizes identified workout-log naming inconsistencies.
+- Converts timestamps to `DATETIME2(3)`.
+- Converts weights to `DECIMAL(6,2)` and repetitions to `INT`.
+- Standardizes selected text fields.
+- Converts missing numerical measurements to `NULL`.
+- Preserves `bronze_id` for data lineage.
+- Standardizes identified workout-log naming inconsistencies.
 
-The transformation uses CTEs, transactions, error handling, and a `NOT EXISTS` check against existing `bronze_id` values.
+Three inconsistent workout-log names affecting 21 records were corrected.
 
-This prevents repeat inserts during the tested sequential rerun scenario. Existing Silver records are not automatically updated when Bronze values change.
+The transformation prevents duplicate inserts under the tested sequential rerun scenario. However, changes to existing Bronze records are not automatically synchronized into Silver.
 
-#### Workout Log Standardization
+### 6.3 Gold Layer
 
-Three inconsistent workout-log names were corrected:
+**Status:** Both Datasets Implemented — Initial Validation Passed
 
-| Original Name | Standardized Name | Records |
+Gold contains two analytical datasets.
+
+#### A. Exercise Progression
+
+**Table:** `gold.exercise_progression`  
+**Records:** 521  
+**Grain:** One row per workout session and exercise
+
+Business rules:
+
+- Consider Sets 1 and 2 only.
+- Require complete weight–repetition pairs.
+- Select the maximum qualifying weight within each session and exercise.
+- Preserve the repetitions associated with the selected weight.
+- Resolve equal-weight ties using the highest corresponding repetitions.
+- Exclude incomplete measurements without modifying Bronze or Silver.
+
+The calculation uses `CROSS APPLY`, `ROW_NUMBER()`, and a transactional full-refresh transformation.
+
+**Validation:** VAL-010 through VAL-015 passed, including controlled edge-case and refresh tests.
+
+#### B. Workout Duration
+
+**Table:** `gold.workout_duration`  
+**Records:** 74  
+**Grain:** One row per non-NULL `workout_log`
+
+Estimated duration is calculated from the difference between the earliest and latest exercise-entry creation timestamps.
+
+The amended ADR-002 rules classify sessions as follows:
+
+| Status | Condition | Sessions |
 |---|---|---:|
-| `Back Day 1` | `Pull Day 1` | 6 |
-| `Pull Day Day 10` | `Pull Day 10` | 6 |
-| `Push Day \| 14` | `Push Day 14` | 9 |
-| **Total** | | **21** |
+| `VALID` | 15 minutes to 10 hours | 62 |
+| `SUSPECT_TIMESTAMP` | Below 15 minutes | 9 |
+| `INVALID` | Above 10 hours | 3 |
+| `INSUFFICIENT_DATA` | Fewer than 2 timestamps | 0 |
+| **Total** | | **74** |
 
-The corrections were tested using transactions and rollback before permanent application.
+Only `VALID` sessions receive a numeric estimated duration.
 
-All 21 targeted records were corrected. The correction script affected zero rows when executed again, and the Silver record count remained at 532.
+**Validation:** VAL-016 through VAL-020 passed, covering grain, membership, calculations, classifications, unchanged-source idempotency, and controlled rollback.
 
-See [Development Progress](docs/progress.md) and [Validation Log](docs/validation.md).
+Duration values remain estimates based on entry-creation timestamps rather than confirmed workout start and end times.
 
-### Gold Layer
+## 7. Validation Summary
 
-**Status:** Investigation and Design in Progress
+| Component | Validation outcome |
+|---|---|
+| Bronze and Silver | 532 records reconciled |
+| Workout-log standardization | 21 records corrected |
+| Exercise progression | 521 Gold records |
+| Workout duration | 74 Gold records |
+| Exercise progression validation | VAL-010–015 passed |
+| Workout duration validation | VAL-016–020 passed |
 
-Gold will produce two analytics-ready datasets based on the approved dashboard requirements.
+The detailed validation history is maintained in [docs/validation.md](docs/validation.md).
 
-#### 1. Exercise Progression
+Passing these tests establishes correctness for the scenarios examined, not universal correctness under every possible input or failure condition.
 
-**Planned dataset:** `gold.exercise_progression`
-
-**Grain:** One row per workout session and exercise.
-
-The metric will:
-
-- Use Sets 1 and 2 only.
-- Identify the maximum recorded weight for an exercise within a workout session.
-- Include repetitions associated with that maximum weight.
-- Select the highest corresponding repetitions when maximum weights are tied.
-- Apply no minimum repetition requirement.
-
-Workout progression will be ordered by workout session number rather than entry creation timestamp, subject to validation of the numbering convention.
-
-The investigation is documented in [M-002: Exercise Progression](docs/progress.md).
-
-**Current limitation:** The row-level SQL still requires corrections to weight–repetition pairing and NULL handling. Session-level aggregation has not been completed.
-
-#### 2. Estimated Workout Session Duration
-
-**Planned dataset:** `gold.workout_duration`
-
-**Grain:** One row per workout session.
-
-Each `workout_log` identifies a unique workout session.
-
-Estimated duration will be calculated using the difference between the earliest and latest recorded exercise-entry timestamps within the session.
-
-The approved validity rules are:
-
-| Status | Condition | Duration Value |
-|---|---|---|
-| `VALID` | At least two timestamped entries; duration ≤ 10 hours | Calculated estimate |
-| `INVALID` | Duration exceeds 10 hours | `NULL` |
-| `INSUFFICIENT_DATA` | Fewer than two timestamped entries | `NULL` |
-
-Some exercise entries were recorded after the actual workout. Consequently, estimated durations measure the span between recorded timestamps, not confirmed workout start and end times.
-
-The investigation is documented in [M-001: Workout Session Investigation](docs/progress.md).
-
-**Current limitation:** Duration classification and calculation have not yet been implemented or validated in Gold.
-
-### Power BI Dashboard
-
-**Status:** Planned
-
-Power BI replaces the previously proposed Streamlit dashboard.
-
-The approved Balanced Analytics layout includes:
-
-- An exercise selector.
-- Personal record weight and corresponding repetition KPI cards.
-- A maximum weight progression line chart ordered by workout session number.
-- An estimated workout duration bar chart.
-- Identification of invalid and insufficient duration estimates.
-
-The exercise selector controls exercise progression analysis. The session duration chart remains independent of that selection.
-
-Exercise-specific duration and additional analytical metrics are excluded from Phase 1.
-
-See [Dashboard Requirements](docs/requirements.md).
-
-## Data Validation
-
-SQL validation checks are used to compare records across layers, identify transformation errors, and investigate data quality exceptions.
-
-### Bronze and Silver Validation Results
-
-The initial Silver validation produced the following results:
-
-| Validation | Observed Result | Status |
-|---|---|---|
-| Bronze–Silver record reconciliation | 532 records in each layer | Passed |
-| Duplicate `bronze_id` values | 0 duplicate groups | Passed |
-| Missing Bronze identifiers in Silver | 0 missing | Passed |
-| Set 1 weight conversion loss | 0 exceptions | Passed |
-| Conversion loss across six numeric fields | 0 exceptions | Passed |
-| Set 1 weight conversion accuracy | 0 mismatches | Passed |
-| Accuracy across six numeric fields | 0 mismatches | Passed |
-| Timestamp conversion accuracy | 0 mismatches | Passed |
-| Text cleaning accuracy | 0 mismatches against tested rules | Passed |
-| Missing required values | 3 incomplete records | Reviewed |
-| Invalid nonempty source timestamps | 0 exceptions | Passed |
-| Negative measurements | 0 exceptions | Passed |
-| Sequential Silver transformation rerun | 532 records; 0 duplicate groups | Passed |
-| Workout-log naming corrections | 21 targeted records corrected | Passed |
-| Naming correction rerun | 0 additional rows affected | Passed |
-
-These results verify the tested transformation and correction behavior. They do not guarantee that every original workout measurement is accurate.
-
-### Data Quality Findings
-
-Three records contain missing values for both `exercise` and `workout_log`.
-
-| Bronze ID | Bronze Values | Silver Values |
-|---|---|---|
-| 321 | NULL | NULL |
-| 334 | NULL | NULL |
-| 335 | NULL | NULL |
-
-The missing values were traced to Bronze and were preserved in Silver.
-
-These three records represent approximately 0.56% of the 532-record dataset.
-
-They remain in both layers for traceability. Their treatment in Gold remains to be finalized.
-
-### Rerun Validation
-
-The Bronze-to-Silver transformation was executed again against unchanged Bronze data.
-
-The Silver record count remained at 532, with no duplicate `bronze_id` groups detected.
-
-This confirms idempotent behavior for the tested sequential rerun scenario. It does not establish protection against concurrent executions or automatic synchronization of changed source records.
-
-The separate one-time workout-log correction was also rerun successfully, affecting zero additional records.
-
-### Gold Validation
-
-**Status:** Pending
-
-Gold validation will verify metric calculations, NULL handling, tie-breaking behavior, uniqueness at each dataset's defined grain, and workout duration classifications.
-
-No final Gold analytical output has passed validation yet.
-
-Detailed validation evidence is maintained in [docs/validation.md](docs/validation.md).
-
-## Setup and Execution
+## 8. Manual Execution Workflow
 
 ### Prerequisites
 
 - Microsoft SQL Server Express
-- Visual Studio Code with a SQL Server connection extension
+- Visual Studio Code with SQL Server connectivity
 - Git
-- A compatible Notion workout CSV export
+- Compatible Notion workout CSV export
 
-Power BI will be required when dashboard development begins.
-
-### Current Manual Execution Sequence
+### Execution Sequence
 
 1. Export workout records from Notion as CSV.
-2. Import the CSV into `dbo.exercise_entries_stage` in `GymDB`.
-3. Load the staging records into `bronze.exercise_entries`.
+2. Load the CSV into `dbo.exercise_entries_stage`.
+3. Execute the Bronze loading and validation scripts.
 4. Execute the Silver transformation and validation scripts.
-5. Review identified data quality exceptions.
-6. Apply the one-time Silver naming correction only when required.
+5. Review source-data quality exceptions.
+6. Apply the one-time Silver workout-log correction if required.
+7. Execute `gold/b_build_exercise_progression.sql`.
+8. Execute `gold/d_build_workout_duration.sql`.
+9. Execute the respective Gold validation scripts.
+10. Review results and document unexpected discrepancies.
 
-The Silver correction has already been applied to the current local dataset. Its script is retained for documentation and reproducibility.
+**Reproducibility note:** This describes the local development workflow. A fully independent, clean-environment pipeline setup and execution has not been established by the recorded validation results alone.
 
-**Reproducibility note:** The process above reflects the tested local workflow. A complete setup guide for external users, including import configuration and suitable sample data, has not yet been verified.
+## 9. Engineering Decisions
 
-Gold execution and Power BI setup instructions will be added after their implementations have been tested.
-
-## Engineering Decisions
-
-Major technical decisions are documented in `docs/decisions/`:
+Architecture Decision Records are maintained in `docs/decisions/`.
 
 | ADR | Decision |
 |---|---|
-| ADR-001 | Exclude Set 3 from Gold progression metrics and preserve associated repetitions |
-| ADR-002 | Identify sessions by `workout_log` and validate estimated durations |
-| ADR-003 | Reduce the project roadmap from four phases to two |
-| ADR-004 | Use Power BI instead of Streamlit |
-| ADR-005 | Use the Balanced Analytics dashboard layout |
-| ADR-006 | Separate Gold datasets according to their analytical grain |
+| ADR-001 | Set 3 exclusion and progression measurement rules |
+| ADR-002 | Session identity and duration-quality classification |
+| ADR-003 | Two-phase project roadmap |
+| ADR-004 | Historical Power BI dashboard selection |
+| ADR-005 | Balanced Analytics dashboard layout |
+| ADR-006 | Gold dataset grain definition |
 
-These decisions guide the Gold implementation and dashboard development.
+The earlier dashboard decisions are preserved as historical project context. The updated Phase 2 dashboard technology has not yet been finalized.
 
-## Current Limitations
+## 10. Known Limitations
 
-- **Manual ingestion:** New data must be exported and imported manually.
-- **Local environment:** The pipeline depends on a locally configured SQL Server database.
-- **Source updates:** Existing Silver rows are not automatically synchronized when Bronze values change.
-- **Data quality:** Three incomplete source records remain preserved, with Gold handling pending.
-- **Timestamp reliability:** Delayed exercise logging limits the accuracy of estimated workout duration.
-- **Measurement accuracy:** Successful numeric conversion does not prove that recorded measurements are correct.
-- **Private dataset:** The workout CSV is not provided as a public reproducibility dataset.
-- **Incomplete pipeline:** Gold transformations, validation, and Power BI dashboard development remain unfinished.
+- **Manual ingestion:** New workout data requires manual CSV export and import.
+- **Source synchronization:** Existing Silver records do not automatically update when Bronze records change.
+- **Local infrastructure:** SQL Server depends on the developer's local environment.
+- **Incomplete records:** Three source records have missing workout and exercise identifiers; Gold eligibility rules exclude records without required identifiers.
+- **Timestamp reliability:** Creation timestamps are not confirmed workout start and completion times.
+- **Controlled validation:** Some rollback and source-change tests used isolated simulations rather than directly testing every failure path of the standalone build scripts.
+- **Reproducibility:** The private source dataset and environment require additional setup work for independent execution.
+- **Dashboard:** No dashboard is included in Phase 1.
 
-## AI Usage
+## 11. AI Usage
 
-AI has been used to explain SQL and Data Engineering concepts, review implementation approaches, identify edge cases, and assist with technical documentation.
+AI was used to explain technical concepts, generate and review SQL, investigate edge cases, and assist with documentation.
 
-Some transformation and validation code was developed with AI assistance and subsequently tested against the local database.
+AI-generated implementations were reviewed and tested against the local database.
 
-AI-generated or AI-reviewed code is not assumed correct solely because it executes successfully. SQL investigations and validation checks are used to evaluate results.
+Successful execution alone was not treated as proof of correctness.
 
-An ongoing learning objective is to strengthen independent SQL implementation, debugging, and code review skills.
+The project emphasizes independent debugging, SQL validation, and critical evaluation of AI-generated code.
 
-## Next Steps
+## 12. Phase 1 Outcome and Phase 2 Transition
 
-1. Complete M-001 workout duration implementation and validation.
-2. Complete M-002 exercise progression implementation and validation.
-3. Create and validate both Gold datasets.
-4. Build the approved Power BI dashboard.
-5. Complete end-to-end testing and update project documentation.
-6. Close Phase 1 and begin planning the final Phase 2.
+**Phase 1 Outcome:** The manual Bronze–Silver–Gold pipeline is implemented, and both Gold datasets have passed their documented initial validations.
 
-**Current Phase:** Phase 1 — Manual End-to-End Data Pipeline  
-**Current Focus:** Gold Development  
-**Repository:** [Gym Data Pipeline](https://github.com/laurogime/Gym_Data_Pipeline)
+The remaining limitations are recorded in the validation log and development documentation.
+
+**Phase 2 — Automated Workout Analytics System (Proposed)**
+
+Phase 2 will extend the existing foundation with:
+
+- Automated Notion API ingestion.
+- Incremental synchronization of new and edited workout records.
+- Automated execution of SQL transformations.
+- Streamlit-based workout analytics.
+- Near-real-time dashboard refresh.
+- Monitoring, error handling, and recovery.
+
+The detailed architecture and implementation plan will be finalized separately.
+
+Phase 1 remains the validated manual pipeline foundation for subsequent development.
