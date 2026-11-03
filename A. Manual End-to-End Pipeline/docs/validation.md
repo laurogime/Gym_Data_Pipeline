@@ -334,60 +334,27 @@ The controlled failure triggered a successful transaction rollback. The original
 
 This test simulated a failure within a separate test transaction. It does not establish recovery behavior for every possible failure in the actual Gold transformation script.
 
-#### VAL-015: Source-Change Refresh
+#### VAL-015: Source-Change Refresh Validation
 
-**Status:** Incomplete — Baseline Mismatch
+**Component:** Gold — M-003  
+**SQL:** [Gold Exercise Progression Validation](../gold/c_validate_gold_exercise_progression.sql) — VAL-015  
+**Status:** Passed — Controlled Test
 
-**Objective:**
-
-Verify that changes to qualifying Silver measurements are correctly reflected in Gold after refreshing the dataset.
-
-**Test Preparation:**
-
-- Selected `bronze_id = 1`, `Pull Day 1`, `Pull-up Bar`.
-- Original Silver Set 1 weight: 49.50 kg.
-- Proposed temporary weight: 50.50 kg.
-- Confirmed that a temporary Silver update could be rolled back successfully.
+**Expected:** A qualifying change in Silver produces the correct Gold maximum weight and corresponding repetitions. Both datasets return to their original state after rollback.
 
 **Actual:**
 
-The subsequent source-change refresh test stopped during its Gold baseline check with SQL error 51022: `Gold baseline does not match`.
-
-The test did not reach the source-change refresh operation.
+- Original Gold measurement: 49.50 kg × 10 repetitions.
+- Modified Silver Set 1: 50.50 kg × 8 repetitions.
+- Gold measurement during test: 50.50 kg × 8 repetitions.
+- Restored Gold measurement: 49.50 kg × 10 repetitions.
+- Gold records before and after: 521.
+- Remaining discrepancies: 0.
 
 **Conclusion:**
 
-The source-change refresh behavior remains unverified. The actual Gold baseline must be inspected before the test can continue.
+The controlled source-change test confirmed that the exercise progression calculation reflected the modified Silver measurement and preserved the corresponding repetitions. Transaction rollback restored the original Silver and Gold datasets.
 
-**Pending:**
+**Limitation:**
 
-- Investigate the baseline mismatch.
-- Correct the validation assumptions.
-- Reexecute the controlled source-change refresh test.
-- Verify restoration of Silver and Gold after testing.
-
----
-
-## Conclusion
-
-Silver workout-log standardization passed all nine documented checks.
-
-All 21 targeted records were corrected, the correction script affected zero rows on its second execution, and the Silver record count remained at 532.
-
-M-002 exercise progression validation passed VAL-010 through VAL-012, including all 11 controlled edge-case scenarios.
-
-M-003 successfully created and populated `gold.exercise_progression` with 521 rows. The unchanged-source idempotency and controlled rollback tests passed.
-
-VAL-015 remains incomplete because its baseline assertion failed. Gold exercise progression is therefore not yet considered fully validated.
-
-### Validation Limitations
-
-- Silver validation focused on targeted naming corrections and record counts.
-- Unrelated column values were not independently compared before and after correction.
-- Dependency checks did not cover every possible external or dynamically generated reference.
-- Silver naming validation alone does not establish session identity.
-- Duration estimates may remain inaccurate even when they fall within the approved 10-hour threshold.
-- M-002 controlled tests used a copy of the transformation logic.
-- M-003 rollback validation used a controlled simulation rather than a failure inside the actual build script.
-- Gold source-change refresh behavior remains unverified.
-- The Gold datasets are not yet ready for final dashboard use.
+The test executed a copy of the transformation and refresh logic within a controlled transaction, rather than invoking the standalone M-003 build script. End-to-end source-change behavior of the standalone script was not independently tested.
