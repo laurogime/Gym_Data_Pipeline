@@ -124,7 +124,7 @@ The total Silver record count remained unchanged.
 
 ## Gold Layer Validation
 
-**Component:** Gold Layer  
+**Component:** Gold Layer
 **Status:** Implementation and Validation in Progress
 
 The exercise progression calculation has passed investigation-level validation and has been implemented as `gold.exercise_progression`.
@@ -375,3 +375,77 @@ The revised duration-classification logic produced the expected results for the 
 - The 15-minute threshold is a business-defined reliability heuristic.
 - The calculation measures the span between exercise-entry creation timestamps rather than confirmed workout duration.
 - The final `gold.workout_duration` dataset has not yet been implemented or validated.
+
+### M-003: Gold Workout Duration Implementation
+
+**Date:** 2026-11-03
+**Component:** Gold Layer  
+**Build SQL:** [d_build_workout_duration.sql](../gold/d_build_workout_duration.sql)  
+**Validation SQL:** [e_validate_gold_workout_duration.sql](../gold/e_validate_gold_workout_duration.sql)  
+**Status:** Implemented — Initial Validation Passed
+
+The `gold.workout_duration` table was implemented using the amended ADR-002 business rules and a transactional full-refresh strategy.
+
+The persisted dataset contains 74 workout sessions: 62 `VALID`, 9 `SUSPECT_TIMESTAMP`, and 3 `INVALID`.
+
+#### VAL-016: Gold Workout Duration Grain Validation
+
+**Status:** Passed
+
+- Silver distinct workout sessions: 74
+- Gold records: 74
+- Gold distinct workout sessions: 74
+- Gold NULL session identifiers: 0
+
+The persisted dataset satisfied the expected one-row-per-session grain.
+
+#### VAL-017: Workout Session Membership Validation
+
+**Status:** Passed
+
+- Missing Gold sessions: 0
+- Unexpected Gold sessions: 0
+
+All expected non-NULL workout-session identifiers were represented in Gold.
+
+#### VAL-018: Duration Calculation and Classification Accuracy
+
+**Status:** Passed
+
+- Missing or mismatched reference records: 0
+- Unexpected or mismatched Gold records: 0
+
+All seven persisted output columns matched the independently reconstructed Silver reference for the tested dataset.
+
+#### VAL-019: Unchanged-Source Idempotency
+
+**Status:** Passed
+
+- Baseline Gold records: 74
+- Full-refresh build rerun successfully.
+- SHA-256 dataset fingerprint remained identical.
+
+The transformation reproduced the same serialized dataset after reexecution with unchanged Silver data.
+
+#### VAL-020: Transaction Rollback and Failure Recovery
+
+**Status:** Passed — Controlled Test
+
+- Original Gold records: 74
+- Records inserted during simulated partial refresh: 20
+- Intentional error: 51020
+- Records after rollback: 74
+- Missing records: 0
+- Unexpected records: 0
+
+The simulated failure triggered a successful rollback, preserving the original Gold dataset.
+
+**Limitation:** VAL-020 used a separate controlled transaction rather than triggering a failure inside the standalone build script. It does not establish recovery behavior for every possible execution failure.
+
+### Overall Result
+
+The Gold workout-duration implementation passed VAL-016 through VAL-020.
+
+The persisted dataset matches the approved source-derived calculations and classifications, reproduces its contents after an unchanged-source rerun, and remains intact after the controlled rollback test.
+
+The duration metric remains an estimate based on exercise-entry creation timestamps, not a measurement of actual workout completion time.
