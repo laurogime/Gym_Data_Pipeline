@@ -168,8 +168,8 @@ The validated logic was carried forward into M-003 for implementation as a persi
 ## M-003: Gold Exercise Progression Implementation
 
 **Started:** 2026-11-02  
-**Updated:** 2026-11-02  
-**Status:** Implemented — Further Validation Pending  
+**Updated:** 2026-11-03  
+**Status:** Implemented — Controlled Validation Passed  
 **SQL:** [Gold Exercise Progression Build](../gold/b_build_exercise_progression.sql)  
 **Validation:** [Gold Exercise Progression Validation](../gold/c_validate_gold_exercise_progression.sql)
 
@@ -208,33 +208,53 @@ The dataset contains one row per `workout_log` and `exercise`, with the maximum 
 - Verified that rollback restored the original 521 Gold records.
 - Confirmed no discrepancies against the original dataset.
 
-**VAL-015: Source-Change Refresh — Incomplete**
+**VAL-015: Source-Change Refresh — Passed (Controlled Test)**
 
-- Selected a Silver record for a controlled source-change test.
-- Verified that a temporary Silver weight modification could be rolled back.
-- Attempted to test whether a source change would propagate into Gold.
-- The test stopped during its baseline check with error 51022: `Gold baseline does not match`.
-- Further investigation is required before completing this validation.
+**November 2, 2026 — Initial Investigation**
+
+- Selected `bronze_id = 1`, `Pull Day 1`, `Pull-up Bar` for a controlled source-change test.
+- Confirmed that a temporary Silver weight modification could be rolled back.
+- The initial source-change test stopped with error 51022 because the expected Gold baseline did not match.
+
+**November 3, 2026 — Investigation and Resolution**
+
+- Investigated the actual Silver measurements and corresponding Gold result.
+- Identified that both sets recorded 49.50 kg, with 8 repetitions in Set 1 and 10 repetitions in Set 2.
+- Confirmed that Gold correctly selected 49.50 kg × 10 repetitions based on the approved tie-breaking rule.
+- Corrected the validation's baseline assumption.
+- Temporarily increased Silver Set 1 weight to 50.50 kg.
+- Verified that the recalculated Gold result changed to 50.50 kg × 8 repetitions.
+- Rolled back the transaction and confirmed that Silver and Gold returned to their original values.
+- Confirmed 521 Gold records before and after testing, with zero remaining discrepancies.
+
+**Result:** The controlled source-change refresh test passed.
+
+**Limitation:** The test executed a copy of the transformation and refresh logic inside a controlled transaction. Source-change behavior through a standalone execution of `b_build_exercise_progression.sql` has not been independently validated.
 
 ### What I Learned
 
 - The difference between atomicity and idempotency.
-- How database transactions protect against partially committed changes.
+- How transactions protect against partially committed changes.
 - Why rerunnable transformations are important for data pipelines.
-- Using temporary tables to prepare replacement datasets and capture validation snapshots.
+- Using temporary tables to prepare replacement datasets and validation snapshots.
 - Comparing datasets using `EXCEPT`.
 - Testing transaction rollback through controlled failures.
-- The importance of validating test assumptions before modifying source data.
+- Verifying source-change propagation through controlled data modifications.
+- Why incorrect validation assumptions can cause a test to fail even when the transformation is correct.
+- The importance of preserving the relationship between maximum weight and corresponding repetitions.
 
 ### Pending
 
-- Investigate and resolve the VAL-015 baseline mismatch.
-- Complete source-change refresh validation.
-- Perform any remaining checks required before finalizing the Gold dataset.
-- Record final verification results in `docs/validation.md`.
+- Complete any remaining persisted-table and standalone execution checks required for final Gold approval.
+- Document any additional verified findings in `docs/validation.md`.
+- Proceed with implementation and validation of `gold.workout_duration`.
 
 ### Current Outcome
 
 The Gold exercise progression table has been implemented and populated with 521 records.
 
-Unchanged-source rerun and controlled rollback tests passed. Source-change refresh behavior remains unverified, so M-003 is not yet considered fully validated.
+VAL-013 and VAL-014 passed, confirming unchanged-source rerun behavior and rollback under a controlled failure.
+
+VAL-015 also passed after correcting an incorrect baseline assumption. The controlled test confirmed that changes in Silver were reflected in the recalculated Gold result and that the original data was restored successfully.
+
+The exercise progression implementation is ready for the next development stage, with the remaining validation limitations documented.
