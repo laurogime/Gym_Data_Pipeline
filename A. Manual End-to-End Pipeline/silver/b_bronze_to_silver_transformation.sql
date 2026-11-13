@@ -15,6 +15,11 @@ Behavior:
     Insert new records only. Existing Silver records are not updated.
 */
 
+USE [GymDB_V1_Sample];
+
+IF DB_NAME() <> N'GymDB_V1_Sample'
+    THROW 50010, 'This script must run in GymDB_V1_Sample.', 1;
+
 SET XACT_ABORT ON;
 
 BEGIN TRY

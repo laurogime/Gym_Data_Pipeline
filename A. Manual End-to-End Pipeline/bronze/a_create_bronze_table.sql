@@ -1,3 +1,8 @@
+USE [GymDB_V1_Sample];
+
+IF DB_NAME() <> N'GymDB_V1_Sample'
+    THROW 50010, 'This script must run in GymDB_V1_Sample.', 1;
+
 CREATE TABLE bronze.exercise_entries (
     bronze_id BIGINT IDENTITY(1, 1) PRIMARY KEY,
     workout_log NVARCHAR(1000),

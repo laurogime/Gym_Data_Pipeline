@@ -5,6 +5,11 @@
 -- Business rules: ADR-002 (amended 2026-11-03)
 -- Strategy: Transactional full refresh
 
+USE [GymDB_V1_Sample];
+
+IF DB_NAME() <> N'GymDB_V1_Sample'
+    THROW 50010, 'This script must run in GymDB_V1_Sample.', 1;
+
 SET NOCOUNT ON;
 
 -- Reject execution inside an existing transaction.
