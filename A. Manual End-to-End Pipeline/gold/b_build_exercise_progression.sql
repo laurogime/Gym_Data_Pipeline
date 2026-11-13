@@ -7,6 +7,12 @@
 -- Load strategy: Transactional full refresh
 
 -- Require execution outside an existing transaction
+
+USE [GymDB_V1_Sample];
+
+IF DB_NAME() <> N'GymDB_V1_Sample'
+    THROW 50010, 'This script must run in GymDB_V1_Sample.', 1;
+
 IF @@TRANCOUNT <> 0
     THROW 50003, 'Run this build outside an active transaction.', 1;
 

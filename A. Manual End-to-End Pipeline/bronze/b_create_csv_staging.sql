@@ -1,5 +1,7 @@
-USE GymDB;
-GO
+USE [GymDB_V1_Sample];
+
+IF DB_NAME() <> N'GymDB_V1_Sample'
+    THROW 50010, 'This script must run in GymDB_V1_Sample.', 1;
 
 CREATE TABLE dbo.exercise_entries_stage (
     property NVARCHAR(100),

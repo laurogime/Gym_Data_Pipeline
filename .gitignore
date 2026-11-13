@@ -2,3 +2,9 @@
 *.csv
 /A. Manual End-to-End Pipeline/check.sql
 /A. Manual End-to-End Pipeline/check_csv.py
+
+# Keep all files in the private data folder out of Git
+/data/private/
+
+# Allow only the public synthetic demo CSV
+!/data/sample/exercise_entries_demo.csv

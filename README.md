@@ -1,273 +1,146 @@
 # Gym Data Engineering Pipeline
 
-*A two-phase Data Engineering project transforming workout records into validated datasets and an automated workout analytics system.*
+**Version 1 is a manual SQL Server pipeline that turns workout CSV records into two validated analytics datasets.** The public demo runs on seven synthetic workout entries. You do not need a Notion account, personal workout data, or Version 2 to try it.
 
 ## Overview
 
-The Gym Data Pipeline is a personal Data Engineering project designed to transform workout records from Notion into structured, validated datasets for exercise progression analysis.
-
-The project combines practical Data Engineering skills with a real-world application: tracking gym performance through reliable data processing and analytics.
-
-Development is organized into two phases:
-
-- **Phase 1 — Manual Data Engineering Pipeline:** Implement and validate a manual data pipeline using Notion CSV exports and Microsoft SQL Server.
-- **Phase 2 — Automated Workout Analytics System:** Extend the Phase 1 foundation with automated Notion ingestion, pipeline orchestration, and an interactive dashboard.
-
-**Current Status:** Phase 1 technical implementation completed with initial validation passed. Phase 2 planning is next.
-
-## Problem Statement
-
-Workout records stored in Notion contain valuable information about exercise performance, including weights, repetitions, and workout sessions.
-
-However, analyzing long-term progression directly from individual entries is inconvenient. The source data also contains inconsistencies, missing measurements, and unreliable exercise-entry timestamps.
-
-This project addresses these challenges by building a structured pipeline that preserves source records, standardizes data, validates transformations, and produces analytics-ready datasets.
-
-## Project Objectives
-
-1. Build a manual data pipeline from Notion CSV exports to SQL Server.
-2. Organize records into Bronze, Silver, and Gold layers.
-3. Implement SQL transformations while preserving data lineage.
-4. Validate transformations and analytical calculations.
-5. Calculate maximum weight progression and estimated workout duration.
-6. Document engineering decisions, validation evidence, and known limitations.
-7. Extend the validated foundation into an automated workout tracking application in Phase 2.
+Workout logs are useful for tracking progress, but individual entries can contain inconsistent labels, incomplete sets, and timestamps that do not reflect when training ended. Version 1 preserves the raw records, cleans and types them, and produces two Gold datasets for comparing exercise performance and estimating session duration.
 
 ## Architecture
 
-### Phase 1 — Implemented
-
 ```mermaid
 flowchart TD
-    A["Notion Workout Records"] --> B["Manual CSV Export"]
-    B --> C["SQL Server Staging"]
-    C --> D["Bronze — Raw Records"]
-    D --> E["Silver — Cleaned Records"]
-    E --> F["Gold — Analytical Datasets"]
-    F --> G["Exercise Progression"]
-    F --> H["Workout Duration"]
+    A["Workout CSV"] --> B["SQL Server staging"]
+    B --> C["Bronze · Raw records"]
+    C --> D["Silver · Cleaned records"]
+    D --> E["Gold · Analytical datasets"]
+    E --> F["Exercise progression"]
+    E --> G["Workout duration"]
 ```
 
-### Phase 2 — Proposed
+| Layer | What it does |
+|---|---|
+| Bronze | Preserves the staged source values and assigns a row ID. |
+| Silver | Keeps the Bronze ID for lineage, standardizes labels, and converts timestamps, weights, and reps to typed values. Blank numeric fields become `NULL`. |
+| Gold | Builds one row per workout and exercise for progression, and one row per workout for estimated duration. |
 
-```mermaid
-flowchart TD
-    A["Notion Workout Database"] --> B["Automated Notion API Ingestion"]
-    B --> C["SQL Server Data Pipeline"]
-    C --> D["Bronze → Silver → Gold"]
-    D --> E["Streamlit Dashboard"]
-    F["Automated Scheduling and Monitoring"] -.-> B
-    F -.-> C
-```
+Version 1 uses **SQL Server Express** and **T-SQL** on Windows. VS Code is used to run the SQL files. Notion was the original data source, but the demo uses only the synthetic CSV included here.
 
-The Phase 2 architecture is provisional and will be refined before implementation.
+## Run the Version 1 demo
 
-Phase 2 is intended to reuse and extend the existing Phase 1 transformations rather than duplicate the entire pipeline.
+### Prerequisites
 
-## Technology Stack
+- A local SQL Server Express instance on Windows.
+- VS Code with the Microsoft SQL Server extension and a connection to that instance.
+- Permission to create the demo database and import a CSV that SQL Server can read.
 
-| Technology | Purpose | Status |
-|---|---|---|
-| Notion | Workout data source | In Use |
-| CSV | Manual data export | Phase 1 |
-| SQL Server Express | Database engine | In Use |
-| T-SQL | Transformations and validation | In Use |
-| Visual Studio Code | Development environment | In Use |
-| Git and GitHub | Version control | In Use |
-| Python | Automated ingestion and application development | Proposed for Phase 2 |
-| Notion API | Automated source synchronization | Proposed for Phase 2 |
-| Streamlit | Interactive workout dashboard | Proposed for Phase 2 |
+### First run
 
-Power BI was previously selected for the Phase 1 dashboard, but dashboard development has been transferred to Phase 2. The earlier design decisions remain documented.
+1. Clone the repository and open the folder in VS Code.
 
-## Development Phases
+   ```bash
+   git clone https://github.com/laurogime/Gym_Data_Pipeline.git
+   cd Gym_Data_Pipeline
+   ```
 
-### Phase 1 — Manual Data Engineering Pipeline
+2. Locate [the synthetic CSV](data/sample/exercise_entries_demo.csv) in the repository root's `data/sample/` directory. In VS Code, right-click the file and choose **Copy Path** to get its absolute Windows path.
+3. Run the SQL files in the order below. Paths are relative to `A. Manual End-to-End Pipeline/`. Run each file in full. The setup script creates `GymDB_V1_Sample` if needed. For a first run, use a demo database with no pipeline tables from an earlier run. Do not use your personal database.
 
-**Status:** Technical Implementation Completed — Initial Validation Passed
+   | Order | Script | Action |
+   |---:|---|---|
+   | 1 | `database/database.sql` | Create the demo database and its Bronze, Silver, and Gold schemas. |
+   | 2 | `bronze/b_create_csv_staging.sql` | Create the staging table. |
+   | 3 | `bronze/c_bulk_insert_staging.sql` | Copy this script into a new scratch query. Replace `PASTE_DEMO_CSV_PATH_HERE` with the absolute path to the synthetic CSV, keeping the surrounding single quotes. Run the scratch copy. Leave the placeholder unchanged in the repository file. |
+   | 4 | `bronze/a_create_bronze_table.sql` | Create the Bronze table. |
+   | 5 | `bronze/d_load_staging_to_bronze.sql` | Copy staged rows into Bronze. |
+   | 6 | `bronze/e_validate_bronze.sql` | Check row counts, IDs, and preservation of the staged values. |
+   | 7 | `silver/a_create_silver_table.sql` | Create the Silver table. |
+   | 8 | `silver/b_bronze_to_silver_transformation.sql` | Clean and load the Bronze rows into Silver. |
+   | 9 | `gold/b_build_exercise_progression.sql` | Build the exercise progression dataset. |
+   | 10 | `gold/d_build_workout_duration.sql` | Build the workout duration dataset. |
 
-Phase 1 establishes the foundational data pipeline using a Medallion-style architecture.
+   If the import cannot open the CSV, check the absolute path and verify that SQL Server has read access to the file. If the loader reports that staging already contains rows, do not import the same CSV again.
 
-- **Bronze:** Preserve raw workout records.
-- **Silver:** Clean, standardize, and validate source records.
-- **Gold:** Produce analytics-ready datasets using approved business rules.
+4. Confirm the Bronze validation shows **7 staging rows, 7 Bronze rows, and 7 unique Bronze IDs**, with no rows in the difference grid. Then run this read-only verification query and compare the results with the tables below.
 
-#### Implementation Results
+   ```sql
+   USE [GymDB_V1_Sample];
 
-| Component | Status | Records |
+   SELECT
+       COUNT(*) AS silver_rows,
+       COUNT(DISTINCT bronze_id) AS unique_bronze_ids,
+       COUNT(today) AS rows_with_timestamp
+   FROM silver.exercise_entries;
+
+   SELECT set_2_weight, set_2_reps
+   FROM silver.exercise_entries
+   WHERE workout_log = N'Push Day 2' AND exercise = N'Bench Press';
+
+   SELECT workout_log, exercise, max_weight, max_weight_reps
+   FROM gold.exercise_progression
+   ORDER BY workout_log, exercise;
+
+   SELECT workout_log, duration_status, estimated_duration_minutes
+   FROM gold.workout_duration
+   ORDER BY workout_log;
+   ```
+
+### Expected demo results
+
+**Silver** returns **7 rows, 7 unique Bronze IDs, and 7 timestamps**. The Push Day 2 Bench Press row has Set 2 weight of `50.00` and Set 2 reps of `NULL`.
+
+**Gold exercise progression** considers Sets 1 and 2 only. It ranks complete weight–rep pairs by weight, then by reps when the weights tie.
+
+| Workout | Exercise | Max weight (kg) | Reps |
+|---|---|---:|---:|
+| Pull Day 1 | Seated Cable Row | 35.00 | 8 |
+| Pull Day 2 | Lat Pulldown | 35.00 | 8 |
+| Pull Day 2 | Seated Cable Row | 37.50 | 10 |
+| Push Day 1 | Bench Press | 40.00 | 10 |
+| Push Day 1 | Cable Pushdown | 17.50 | 10 |
+| Push Day 2 | Bench Press | 42.50 | 8 |
+| Push Day 2 | Lateral Raise | 10.00 | 10 |
+
+Push Day 1 Bench Press demonstrates the rep tie-break and excludes the heavier Set 3. Push Day 2 Bench Press skips the heavier Set 2 because its reps are missing.
+
+**Gold workout duration** measures the span between the first and last exercise-entry creation timestamps in each session. Fewer than two timestamped entries are classified as `INSUFFICIENT_DATA`. Spans under 15 minutes are `SUSPECT_TIMESTAMP`, and spans over 10 hours are `INVALID`. Only spans from 15 minutes through 10 hours, inclusive, are `VALID` and return a numeric estimate.
+
+| Workout | Duration status | Estimated minutes |
 |---|---|---:|
-| Manual CSV ingestion | Completed | 532 |
-| Bronze layer | Completed | 532 |
-| Silver layer | Completed | 532 |
-| Gold exercise progression | Implemented and validated | 521 |
-| Gold workout duration | Implemented and validated | 74 |
+| Pull Day 1 | `INSUFFICIENT_DATA` | `NULL` |
+| Pull Day 2 | `INVALID` | `NULL` |
+| Push Day 1 | `VALID` | 40.00 |
+| Push Day 2 | `SUSPECT_TIMESTAMP` | `NULL` |
 
-#### Gold Dataset 1 — Exercise Progression
+### Verify a rerun
 
-**Table:** `gold.exercise_progression`
+With the demo data unchanged, rerun only the **Silver transformation** (step 8 in the script table) and the **two Gold builds** (steps 9 and 10). Then rerun the verification query. Silver should still contain seven rows with seven unique Bronze IDs, and both Gold outputs should match the tables above. Do not rerun the staging or Bronze loads for this check.
 
-Calculates the maximum qualifying weight and corresponding repetitions per workout session and exercise.
+## Validation and engineering decisions
 
-The metric considers Sets 1 and 2, requires complete weight–repetition pairs, and resolves equal-weight ties using the highest corresponding repetitions.
+The original Version 1 validation covered source-to-target reconciliation, lineage, type conversions, naming corrections, and both Gold datasets. The progression checks are recorded as **VAL-010 through VAL-015**, and the duration checks as **VAL-016 through VAL-020**. The original dataset is private and is not required to reproduce the public demo. Some historical recovery checks used controlled simulations rather than failures injected into the standalone scripts.
 
-**Validation:** VAL-010 through VAL-015 passed within their documented testing scope.
+The seven-row synthetic demo ran end to end on a fresh `GymDB_V1_Sample`
+database using a pre-commit export of the repository files. The CSV loaded
+after the loader was set to read LF line endings. Bronze matched staging,
+Silver preserved the missing rep count as `NULL`, and both Gold tables
+matched the expected results above. With the input unchanged, rerunning
+Silver and both Gold builds left Silver at seven rows with seven unique
+Bronze IDs and produced identical Gold results.
 
-#### Gold Dataset 2 — Workout Duration
+This was a local test from an exported copy, not a clone of a published release.
 
-**Table:** `gold.workout_duration`
+- [Version 1 implementation notes](A.%20Manual%20End-to-End%20Pipeline/README.md)
+- [Validation log](A.%20Manual%20End-to-End%20Pipeline/docs/validation.md)
+- [Architecture decision records](A.%20Manual%20End-to-End%20Pipeline/docs/decisions/)
 
-Calculates estimated duration using the earliest and latest exercise-entry creation timestamps within a workout session.
+## Data privacy and limitations
 
-The dataset implements four quality classifications:
+- The sample CSV is synthetic. Keep real exports outside the repository or in the ignored `data/private/` directory. Do not commit machine-specific import paths.
+- Ingestion is manual. Silver inserts new Bronze IDs but does not synchronize changes to existing entries.
+- Estimated duration reflects when entries were created, not confirmed workout start and finish times.
+- Scheduled ingestion and a dashboard are outside Version 1. Version 2 is a separate design effort and does not require the Version 1 database.
 
-| Status | Sessions |
-|---|---:|
-| `VALID` | 62 |
-| `SUSPECT_TIMESTAMP` | 9 |
-| `INVALID` | 3 |
-| `INSUFFICIENT_DATA` | 0 |
-| **Total** | **74** |
+## AI usage
 
-Only `VALID` sessions receive numeric estimated durations.
-
-**Validation:** VAL-016 through VAL-020 passed within their documented testing scope.
-
-#### Phase 1 Outcome
-
-Both Gold datasets are implemented and available for downstream analytics.
-
-The Phase 1 technical implementation is complete, with known limitations recorded in the project documentation.
-
-Dashboard development is no longer a Phase 1 completion requirement.
-
-Detailed documentation is available in the [Phase 1 README](A.%20Manual%20End-to-End%20Pipeline/README.md).
-
-### Phase 2 — Automated Workout Analytics System
-
-**Status:** Planning
-
-Phase 2 will extend the existing manual pipeline into an automated system intended for daily workout tracking.
-
-Proposed capabilities include:
-
-- Automated ingestion from the Notion API.
-- Synchronization of newly created and modified workout entries.
-- Preservation of historical workout measurements.
-- Automated Bronze, Silver, and Gold processing.
-- Streamlit dashboard for exercise progression and workout analytics.
-- Near-real-time data refresh.
-- Monitoring, error handling, and recovery.
-
-The final technology choices, deployment strategy, and implementation sequence will be determined during Phase 2 planning.
-
-## Repository Structure
-
-```text
-Gym_Data_Pipeline/
-├── README.md
-└── A. Manual End-to-End Pipeline/
-    ├── README.md
-    ├── bronze/
-    ├── silver/
-    ├── gold/
-    │   └── investigations/
-    ├── database/
-    ├── dashboard/
-    └── docs/
-        ├── decisions/
-        ├── requirements.md
-        ├── milestones.md
-        ├── progress.md
-        └── validation.md
-```
-
-The existing `dashboard/` folder is part of the earlier Phase 1 repository structure; dashboard implementation is deferred.
-
-A dedicated Phase 2 directory will be introduced once its initial architecture is approved.
-
-## Getting Started
-
-Clone the repository:
-
-```bash
-git clone https://github.com/laurogime/Gym_Data_Pipeline.git
-cd Gym_Data_Pipeline
-```
-
-Navigate to `A. Manual End-to-End Pipeline/` and consult its README for the manual SQL Server workflow, implementation details, and validation references.
-
-The pipeline currently requires Microsoft SQL Server Express and a compatible Notion workout CSV export.
-
-**Reproducibility note:** The original workout dataset is private. Independent clean-environment setup and end-to-end reproduction have not yet been fully validated.
-
-## Data Quality and Validation
-
-Data quality is a central engineering requirement.
-
-Phase 1 validation includes:
-
-- Bronze–Silver reconciliation of 532 records.
-- Identifier uniqueness and source lineage checks.
-- Numeric and timestamp transformation validation.
-- Correction of 21 inconsistent workout-log records.
-- Investigation of three incomplete source records.
-- Exercise progression accuracy and controlled edge-case testing.
-- Workout duration quality classification and boundary testing.
-- Gold refresh consistency and controlled transaction rollback testing.
-
-The documented validation checks passed within their tested scope.
-
-These results do not prove universal correctness, guarantee measurement accuracy, or establish recovery from every possible production failure.
-
-Detailed evidence is maintained in the [Validation Log](A.%20Manual%20End-to-End%20Pipeline/docs/validation.md).
-
-## Engineering Decisions
-
-Major technical decisions are documented in Architecture Decision Records under the Phase 1 `docs/decisions/` directory.
-
-These include:
-
-- Set 3 exclusion and exercise progression eligibility.
-- Workout session identity and timestamp reliability.
-- Duration-quality thresholds and classifications.
-- Gold dataset grain and analytical design.
-- Historical dashboard platform and layout decisions.
-- Project phase organization.
-
-Development follows a **Build–Learn–Verify** approach: implement, investigate, independently review, validate, and document the results.
-
-## Current Limitations
-
-- Notion ingestion currently requires manual CSV export and import.
-- SQL Server operates in a local development environment.
-- Existing Silver records are not automatically synchronized when Bronze values change.
-- The original workout dataset is private.
-- Some historical records contain incomplete fields.
-- Creation timestamps do not represent confirmed workout completion times.
-- Some validation scenarios use controlled simulations rather than direct failure injection into standalone build scripts.
-- Full independent clean-environment reproducibility has not been established.
-- An interactive dashboard and automated ingestion have not yet been implemented.
-
-## AI Usage
-
-AI has been used to explain Data Engineering concepts, assist with SQL implementation, review code, identify edge cases, and prepare technical documentation.
-
-AI-generated code is critically reviewed and tested rather than accepted solely because it executes.
-
-The project emphasizes independent reasoning, debugging, validation, and engineering judgment.
-
-## Next Steps
-
-Phase 1 technical implementation and initial validation are complete.
-
-Remaining project closeout work consists of finalizing and committing the corresponding documentation.
-
-The next development stage is **Phase 2 — Automated Workout Analytics System**, beginning with architectural planning and the reuse of the validated Phase 1 foundation.
-
----
-
-**Current Phase:** Phase 1 — Documentation Closeout
-
-**Next Phase:** Phase 2 — Automated Workout Analytics System
-
-**Project Status:** Phase 1 Technical Implementation Completed; Phase 2 Planning Pending
+AI helped explain concepts, review SQL, identify edge cases, and draft documentation. The project follows **Build → Learn → Verify**, with SQL checks and expected outputs used to evaluate the work.

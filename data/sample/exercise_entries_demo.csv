@@ -1,0 +1,8 @@
+property,set_1_reps,set_2_reps,set_3_reps,set_1_weight,set_2_weight,set_3_weight,completed,today,treadmill_km,exercise,workout_log
+,8,10,4,40,40,55,TRUE,2025-01-06T09:00:00,,Bench Press,Push Day 1
+,12,10,,15,17.5,,TRUE,2025-01-06T09:40:00,,Cable Pushdown,Push Day 1
+,8,,4,42.5,50,60,TRUE,2025-01-09T09:00:00,,Bench Press,Push Day 2
+,12,10,,8,10,,TRUE,2025-01-09T09:04:00,,Lateral Raise,Push Day 2
+,10,8,,30,35,,TRUE,2025-01-11T10:00:00,,Seated Cable Row,Pull Day 1
+,12,10,,32.5,37.5,,TRUE,2025-01-14T07:00:00,,Seated Cable Row,Pull Day 2
+,10,8,,30,35,,TRUE,2025-01-14T18:00:00,,Lat Pulldown,Pull Day 2
